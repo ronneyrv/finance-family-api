@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -46,6 +47,13 @@ public class TransactionController {
             LocalDate endDate
     ) {
         return transactionService.findAll(pageable, startDate, endDate);
+    }
+
+    @GetMapping("/{id}")
+    public TransactionResponse findById(
+            @PathVariable UUID id
+    ) {
+        return transactionService.findById(id);
     }
 
 }

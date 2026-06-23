@@ -116,10 +116,17 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional
     public TransactionResponse findById(UUID id) {
-        throw new UnsupportedOperationException(
-                "Not implemented yet"
+        User user = currentUserService.getAuthenticatedUser();
+
+        Transaction transaction = transactionRepository.findByIdAndUserId(
+                id,
+                user.getId()
+        )
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found.")
         );
+        return toResponse(transaction);
     }
 
     @Override
