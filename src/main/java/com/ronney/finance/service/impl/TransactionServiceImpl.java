@@ -182,10 +182,18 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional
     public void delete(UUID id) {
-        throw new UnsupportedOperationException(
-                "Not implemented yet"
+        User user = currentUserService.getAuthenticatedUser();
+
+        Transaction transaction = transactionRepository.findByIdAndUserId(
+                id,
+                user.getId()
+        )
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found.")
         );
+
+        transactionRepository.delete(transaction);
     }
 
     private TransactionResponse toResponse(
