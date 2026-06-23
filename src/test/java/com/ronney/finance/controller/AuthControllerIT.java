@@ -1,24 +1,15 @@
-package com.ronney.finance.controler;
+package com.ronney.finance.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ronney.finance.BaseIntegrationTest;
 import com.ronney.finance.dto.request.LoginRequest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class AuthControllerIT extends BaseIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Test
     void sholdLoginSuccessfully() throws Exception {
