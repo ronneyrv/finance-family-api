@@ -56,4 +56,12 @@ public class TransactionController {
         return transactionService.findById(id);
     }
 
+    @PutMapping("/{id}")
+    public TransactionResponse update(
+            @PathVariable UUID id,
+            @RequestBody @Valid
+            TransactionRequest request
+    ) {
+        return transactionService.update(id, request);
+    }
 }

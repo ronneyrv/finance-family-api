@@ -130,13 +130,55 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional
     public TransactionResponse update(
             UUID id,
             TransactionRequest request
     ) {
-        throw new UnsupportedOperationException(
-                "Not implemented yet"
+        User user = currentUserService.getAuthenticatedUser();
+
+        Transaction transaction = transactionRepository.findByIdAndUserId(
+                id,
+                user.getId()
+        )
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found.")
         );
+
+        Category category = categoryRepository.findById(request.categoryId())
+                .orElseThrow (() -> new ResourceNotFoundException("Category not found.")
+        );
+
+        if (!category.getType().equals(request.type())) {
+            throw new IllegalArgumentException("Category does not match transaction type.");
+        }
+
+        SubCategory subCategory = null;
+
+        if (request.subCategoryId() != null) {
+            subCategory = subCategoryRepository.findById(request.subCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found.")
+            );
+        }
+
+        if (subCategory != null && !subCategory.getCategory().getId().equals(category.getId())) {
+            throw new IllegalArgumentException("SubCategory does not belong to Category.");
+        }
+
+        transaction.setDescription(request.description());
+
+        transaction.setAmount(request.amount());
+
+        transaction.setTransactionDate(request.transactionDate());
+
+        transaction.setType(request.type());
+
+        transaction.setCategory(category);
+
+        transaction.setSubCategory(subCategory);
+
+        transaction = transactionRepository.save(transaction);
+
+        return toResponse(transaction);
     }
 
     @Override
