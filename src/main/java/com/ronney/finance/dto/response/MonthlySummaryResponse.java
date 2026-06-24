@@ -6,6 +6,7 @@ import java.time.Month;
 public record MonthlySummaryResponse(
         Month month,
         BigDecimal income,
-        BigDecimal expense
+        BigDecimal expense,
+        BigDecimal balance
 ) {
 }

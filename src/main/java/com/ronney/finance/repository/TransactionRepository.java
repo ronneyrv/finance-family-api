@@ -2,6 +2,7 @@ package com.ronney.finance.repository;
 
 import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.enums.TransactionType;
+import com.ronney.finance.repository.projection.MonthlySummaryProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -58,5 +59,39 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         """)
     List<CategoryExpenseProjection> findExpensesByCategory(
             @Param("userId") UUID userId
+    );
+
+    @Query("""
+        SELECT
+            MONTH(t.transactionDate) as month,
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN t.type = 'INCOME'
+                        THEN t.amount
+                        ELSE 0
+                    END
+                ),
+                0
+            ) as income,
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN t.type = 'EXPENSE'
+                        THEN t.amount
+                        ELSE 0
+                    END
+                ),
+                0
+            ) as expense
+        FROM Transaction t
+        WHERE t.user.id = :userId
+        AND YEAR(t.transactionDate) = :year
+        GROUP BY MONTH(t.transactionDate)
+        ORDER BY MONTH(t.transactionDate)
+        """)
+    List<MonthlySummaryProjection> findMonthlySummary(
+            @Param("userId") UUID userId,
+            @Param("year") Integer year
     );
 }

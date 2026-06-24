@@ -4,6 +4,7 @@ import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.response.CategoryExpenseResponse;
 import com.ronney.finance.dto.response.DashboardSummaryResponse;
+import com.ronney.finance.dto.response.MonthlySummaryResponse;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.DashboardService;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Month;
 import java.util.List;
 
 @Service
@@ -58,6 +60,28 @@ public class DashboardServiceImpl implements DashboardService {
                                 item.getAmount()
                         )
                 )
+                .toList();
+    }
+
+    @Override
+    public List<MonthlySummaryResponse> getMonthlySummary(Integer year) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        return transactionRepository.findMonthlySummary(
+                user.getId(),
+                year
+        )
+                .stream()
+                .map(item -> {BigDecimal balance = item.getIncome()
+                        .subtract(item.getExpense()
+                        );
+                return new MonthlySummaryResponse(
+                        Month.of(item.getMonth()),
+                        item.getIncome(),
+                        item.getExpense(),
+                        balance
+                     );
+                })
                 .toList();
     }
 }
