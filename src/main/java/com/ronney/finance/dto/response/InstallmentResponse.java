@@ -10,6 +10,7 @@ public record InstallmentResponse(
         Integer totalInstallments,
         BigDecimal amount,
         Integer invoiceMonth,
-        Integer invoiceYear
+        Integer invoiceYear,
+        Boolean paid
 ) {
 }

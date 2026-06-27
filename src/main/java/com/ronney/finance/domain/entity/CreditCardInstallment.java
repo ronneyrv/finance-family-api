@@ -35,11 +35,11 @@ public class CreditCardInstallment {
     @Column(name = "invoice_year", nullable = false)
     private Integer invoiceYear;
 
-    @Column(name = "purshase_date", nullable = false)
-    private LocalDate purshaseDate;
+    @Column(name = "purchase_date", nullable = false)
+    private LocalDate purchaseDate;
 
     @Column(nullable = false)
-    private boolean paid;
+    private Boolean paid;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_id", nullable = false)

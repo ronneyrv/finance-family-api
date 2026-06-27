@@ -19,6 +19,6 @@ public record PurchaseRequest(
         Integer installments,
 
         @NotNull
-        LocalDate purshaseDate
+        LocalDate purchaseDate
 ) {
 }
