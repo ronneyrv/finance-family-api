@@ -121,8 +121,8 @@ public class PurchaseServiceImpl implements PurchaseService {
                                 year
                         );
 
-        if (installments.stream().allMatch(CreditCardInstallment::getPaid)) {
-            throw new IllegalStateException("Invoice already paid.");
+        if (installments.isEmpty()) {
+            throw new ResourceNotFoundException("Invoice not found.");
         }
 
         BigDecimal total = installments.stream()
@@ -191,6 +191,14 @@ public class PurchaseServiceImpl implements PurchaseService {
                 month,
                 year
         );
+
+        if (installments.isEmpty()) {
+            throw new ResourceNotFoundException("Invoice not found.");
+        }
+
+        if (installments.stream().allMatch(CreditCardInstallment::getPaid)) {
+            throw new IllegalStateException("Invoice already paid.");
+        }
 
         LocalDate paymentDate = LocalDate.now();
 
