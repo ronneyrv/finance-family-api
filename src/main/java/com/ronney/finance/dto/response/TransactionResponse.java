@@ -34,22 +34,22 @@ public record TransactionResponse(
         TransactionType type,
 
         @Schema(
-                description = "Transaction identifier category"
+                description = "Category identifier"
         )
         UUID categoryId,
 
         @Schema(
-                description = "Transaction category"
+                description = "Category name"
         )
         String category,
 
         @Schema(
-                description = "Transaction identifier subcategory"
+                description = "Subcategory identifier"
         )
         UUID subCategoryId,
 
         @Schema(
-                description = "Transaction subcategory"
+                description = "Subcategory name"
         )
         String subCategory
 ) {

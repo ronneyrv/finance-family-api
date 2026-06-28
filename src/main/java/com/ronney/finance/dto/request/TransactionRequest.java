@@ -35,19 +35,25 @@ public record TransactionRequest(
 
         @Schema(
                 description = "Transaction type",
-                example = "INCOME"
+                example = "INCOME",
+                allowableValues = {
+                        "INCOME",
+                        "EXPENSE"
+                }
         )
         @NotNull
         TransactionType type,
 
         @Schema(
-                description = "Category identifier"
+                description = "Category identifier",
+                example = "4d0df1d8-8b62-4c0e-bef8-7dbfb74b27f6"
         )
         @NotNull
         UUID categoryId,
 
         @Schema(
-                description = "Subcategory identifier"
+                description = "Subcategory identifier",
+                example = "fd18d65e-87df-4a6e-aef5-d4b7fd0a2b8d"
         )
         UUID subCategoryId
 ) {
