@@ -16,4 +16,8 @@ public interface CreditCardInstallmentRepository extends JpaRepository<CreditCar
             Integer invoiceMonth,
             Integer invoiceYear
     );
+
+    List<CreditCardInstallment> findByCreditCardIdAndPaidFalse(
+            UUID creditCardId
+    );
 }

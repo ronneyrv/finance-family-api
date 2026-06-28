@@ -41,6 +41,9 @@ public class CreditCardInstallment {
     @Column(nullable = false)
     private Boolean paid;
 
+    @Column(name = "paid_at")
+    private LocalDate paidAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_id", nullable = false)
     private CreditCard creditCard;
