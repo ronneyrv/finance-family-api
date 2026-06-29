@@ -3,6 +3,10 @@ package com.ronney.finance.controller;
 import com.ronney.finance.dto.request.GoalRequest;
 import com.ronney.finance.dto.response.GoalResponse;
 import com.ronney.finance.service.GoalService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,12 +15,34 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(
+        name = "Financial Goals",
+        description = "Manage personal financial goals."
+)
 @RestController
 @RequestMapping("/api/v1/goals")
 @RequiredArgsConstructor
 public class GoalController {
     private final GoalService goalService;
 
+    @Operation(
+            summary = "Create financial goal",
+            description = "Creates a new financial goal for the authenticated user."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Goal created successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GoalResponse create(
@@ -27,11 +53,19 @@ public class GoalController {
         return goalService.create(request);
     }
 
+    @Operation(
+            summary = "List financial goals",
+            description = "Returns all financial goals for the authenticated user."
+    )
     @GetMapping
     public List<GoalResponse> findAll() {
         return goalService.findAll();
     }
 
+    @Operation(
+            summary = "Find financial goal",
+            description = "Returns a financial goal by its identifier."
+    )
     @GetMapping("/{id}")
     public GoalResponse findById(
             @PathVariable UUID id
@@ -39,6 +73,10 @@ public class GoalController {
         return goalService.findById(id);
     }
 
+    @Operation(
+            summary = "Update financial goal",
+            description = "Updates an existing financial goal."
+    )
     @PutMapping("/{id}")
     public GoalResponse update(
             @PathVariable UUID id,
@@ -49,6 +87,10 @@ public class GoalController {
         return goalService.update(id, request);
     }
 
+    @Operation(
+            summary = "Delete financial goal",
+            description = "Deletes a financial goal."
+    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
