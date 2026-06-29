@@ -36,10 +36,22 @@ public class PurchaseController {
                 """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Purchase created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "404", description = "Credit card not found")
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Purchase created successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Credit card not found"
+            )
     })
     @PostMapping("/{id}/purchases")
     @ResponseStatus(HttpStatus.CREATED)
@@ -66,8 +78,14 @@ public class PurchaseController {
                 """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Invoice returned successfully"),
-            @ApiResponse(responseCode = "404", description = "Invoice not found")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Invoice returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Invoice not found"
+            )
     })
     @GetMapping("/{id}/invoice")
     public InvoiceResponse getInvoice(
@@ -100,15 +118,34 @@ public class PurchaseController {
                 """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Invoice paid successfully"),
-            @ApiResponse(responseCode = "404", description = "Invoice not found"),
-            @ApiResponse(responseCode = "409", description = "Invoice already paid")
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Invoice paid successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Invoice not found"
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Invoice already paid"
+            )
     })
     @PostMapping("/{id}/invoice/pay")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void payInvoice(
             @PathVariable UUID id,
+
+            @Parameter(
+                    description = "Invoice month",
+                    example = "10"
+            )
             @RequestParam Integer month,
+
+            @Parameter(
+                    description = "Invoice year",
+                    example = "2026"
+            )
             @RequestParam Integer year
     ) {
         purchaseService.payInvoice(

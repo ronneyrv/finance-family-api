@@ -35,6 +35,10 @@ public class CategoryController {
                     description = "Categories returned successfully"
             ),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "Not Found"
+            ),
+            @ApiResponse(
                     responseCode = "401",
                     description = "Unauthorized"
             )
@@ -58,6 +62,20 @@ public class CategoryController {
             summary = "List subcategories",
             description = "Returns all subcategories belonging to a category."
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Subcategories returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Not Found"
+            )
+    })
     @GetMapping("/{id}/sub-categories")
     public List<SubCategoryResponse> findSubCategories(
             @PathVariable UUID id

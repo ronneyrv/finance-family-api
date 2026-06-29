@@ -44,6 +44,10 @@ public class DashboardController {
                     description = "Dashboard generated successfully"
             ),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "Not Found"
+            ),
+            @ApiResponse(
                     responseCode = "401",
                     description = "Unauthorized"
             )
@@ -82,6 +86,16 @@ public class DashboardController {
                 expenses and balance for the authenticated user.
                 """
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial summary returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Financial summary not found"
+            )
+    })
     @GetMapping("/monthly")
     public List<MonthlySummaryResponse> getMonthlySummary(
             @Parameter(

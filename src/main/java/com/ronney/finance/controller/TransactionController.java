@@ -63,6 +63,20 @@ public class TransactionController {
             summary = "List transactions",
             description = "Returns a paginated list of user transactions."
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Transactions returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Not Found"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
     @GetMapping
     public Page<TransactionResponse> findAll(
             @PageableDefault(
@@ -93,6 +107,20 @@ public class TransactionController {
             summary = "Find transaction",
             description = "Returns a transaction by its identifier."
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Transaction returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Not Found"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
     @GetMapping("/{id}")
     public TransactionResponse findById(
             @PathVariable UUID id
@@ -104,6 +132,24 @@ public class TransactionController {
             summary = "Update transaction",
             description = "Updates an existing transaction."
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Transaction updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad request"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Transaction not found"
+            )
+    })
     @PutMapping("/{id}")
     public TransactionResponse update(
             @PathVariable UUID id,
@@ -117,9 +163,27 @@ public class TransactionController {
             summary = "Delete transaction",
             description = "Deletes a transaction."
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Transaction deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Transaction not found"
+            )
+    })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
+            @Parameter(
+                    description = "Transaction identifier",
+                    example = "4d0df1d8-8b62-4c0e-bef8-7dbfb74b27f6"
+            )
             @PathVariable UUID id
     ) {
         transactionService.delete(id);
