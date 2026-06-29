@@ -13,12 +13,14 @@ build/
 .settings
 .springBeans
 .sts4-cache
-.env
-.env.*
-!.env.example
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+
+### Environment variables ###
+.env
+.env.*
+!.env.example
 
 ### IntelliJ IDEA ###
 .idea
