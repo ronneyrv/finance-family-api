@@ -28,6 +28,34 @@ services:
     networks:
       - finance-network
 
+  finance-api:
+
+    build: .
+
+    container_name: finance-api
+
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+
+    ports:
+      - "8080:8080"
+
+    networks:
+      - finance-network
+
 volumes:
   postgres-data:
 
