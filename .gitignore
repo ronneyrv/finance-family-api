@@ -17,6 +17,11 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
+### Environment variables ###
+.env
+.env.*
+!.env.example
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
