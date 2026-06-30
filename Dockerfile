@@ -12,10 +12,6 @@ COPY settings.gradle .
 
 RUN chmod +x gradlew
 
-# Baixa dependências e cria cache
-RUN ./gradlew dependencies --no-daemon
-
-# Agora copia apenas o código
 COPY src src
 
 RUN ./gradlew bootJar --no-daemon

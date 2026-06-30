@@ -1,11 +1,8 @@
 services:
 
   postgres:
-
     image: postgres:17
-
     container_name: finance-postgres
-
     restart: unless-stopped
 
     environment:
@@ -29,7 +26,6 @@ services:
       - finance-network
 
   finance-api:
-
     build: .
 
     container_name: finance-api
