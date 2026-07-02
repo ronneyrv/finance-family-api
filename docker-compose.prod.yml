@@ -1,7 +1,7 @@
 services:
   finance-api:
     build:
-      context: ../app
+      context: .
       dockerfile: Dockerfile
 
     image: finance-api:1.0.0
@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
     env_file:
-      - .env
+      ../compose/.env
 
     environment:
       SPRING_PROFILES_ACTIVE: prod
