@@ -1,0 +1,20 @@
+services:
+  finance-api:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+
+    image: finance-api:1.0.0
+
+    container_name: finance-api
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+    ports:
+      - "8080:8080"
