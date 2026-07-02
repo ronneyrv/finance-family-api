@@ -15,6 +15,7 @@ services:
 
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
 
     ports:
       - "8080:8080"
