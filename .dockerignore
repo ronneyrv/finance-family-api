@@ -1,8 +1,8 @@
 .git
 .gradle
 .idea
-build
 out
 README.md
 HELP.md
 *.iml
+*.tar.gz
