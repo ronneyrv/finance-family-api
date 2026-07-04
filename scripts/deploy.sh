@@ -2,25 +2,19 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="/opt/finance-api/compose/docker-compose.yml"
-ENV_FILE="/opt/finance-api/compose/.env"
+COMPOSE_DIR="/opt/finance-api/compose"
 
-echo "Pulling latest production image..."
-docker compose \
-  -f "$COMPOSE_FILE" \
-  --env-file "$ENV_FILE" \
-  pull
+echo "==> Starting production deployment"
 
-echo "Starting production container..."
-docker compose \
-  -f "$COMPOSE_FILE" \
-  --env-file "$ENV_FILE" \
-  up -d
+cd "$COMPOSE_DIR"
 
-echo "Checking container status..."
-docker compose \
-  -f "$COMPOSE_FILE" \
-  --env-file "$ENV_FILE" \
-  ps
+echo "==> Pulling latest image from GHCR"
+docker compose pull
 
-echo "Production deployment completed."
+echo "==> Updating application container"
+docker compose up -d
+
+echo "==> Container status"
+docker compose ps
+
+echo "==> Deployment completed successfully"
