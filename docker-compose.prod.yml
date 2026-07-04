@@ -1,17 +1,13 @@
 services:
   finance-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    image: finance-api:1.0.0
+    image: ghcr.io/ronneyrv/finance-family-api:${IMAGE_TAG:-latest}
 
     container_name: finance-api
 
     restart: unless-stopped
 
     env_file:
-      ../compose/.env
+      - ../compose/.env
 
     environment:
       SPRING_PROFILES_ACTIVE: prod
