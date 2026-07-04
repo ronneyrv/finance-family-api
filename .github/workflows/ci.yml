@@ -79,3 +79,43 @@ jobs:
           labels: ${{ github.ref == 'refs/heads/main' && steps.meta.outputs.labels || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production
+
+    needs: ci
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Configure SSH
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/finance_deploy
+          chmod 600 ~/.ssh/finance_deploy
+
+          ssh-keyscan -H "$PROD_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy immutable image to production
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+        run: |
+          IMAGE_TAG="sha-${GITHUB_SHA::7}"
+
+          echo "Deploying image tag: $IMAGE_TAG"
+
+          ssh \
+            -i ~/.ssh/finance_deploy \
+            -o IdentitiesOnly=yes \
+            "$PROD_USER@$PROD_HOST" \
+            "/opt/finance-api/scripts/deploy.sh $IMAGE_TAG"
