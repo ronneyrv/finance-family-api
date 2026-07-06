@@ -113,9 +113,13 @@ jobs:
           IMAGE_TAG="sha-${GITHUB_SHA::7}"
 
           echo "Deploying image tag: $IMAGE_TAG"
+          echo "Deploying Git commit: $GITHUB_SHA"
 
           ssh \
             -i ~/.ssh/finance_deploy \
             -o IdentitiesOnly=yes \
             "$PROD_USER@$PROD_HOST" \
-            "/opt/finance-api/scripts/deploy.sh $IMAGE_TAG"
+            "cd /opt/finance-api/app && \
+            git fetch origin main && \
+            git checkout --detach '$GITHUB_SHA' && \
+            ./scripts/deploy.sh '$IMAGE_TAG' '$GITHUB_SHA'"
