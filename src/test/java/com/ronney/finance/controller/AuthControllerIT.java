@@ -14,8 +14,8 @@ class AuthControllerIT extends BaseIntegrationTest {
     @Test
     void sholdLoginSuccessfully() throws Exception {
         LoginRequest request = new LoginRequest(
-                "ronneyrv@gmail.com",
-                "123456"
+                "user.one@example.test",
+                "test-password"
         );
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -32,8 +32,8 @@ class AuthControllerIT extends BaseIntegrationTest {
 
         LoginRequest request =
                 new LoginRequest(
-                        "ronneyrv@gmail.com",
-                        "999999"
+                        "user.one@example.test",
+                        "invalid-password"
                 );
 
         mockMvc.perform(
