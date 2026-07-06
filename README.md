@@ -151,12 +151,58 @@ JWT_EXPIRATION=86400000
 
 O arquivo `.env` contém informações sensíveis e não deve ser enviado para o repositório.
 
+## Profiles da Aplicação
+
+A aplicação utiliza profiles do Spring Boot para separar as configurações e os dados utilizados em cada ambiente.
+
+| Profile | Ambiente | Banco de dados | Inicialização de dados |
+|---|---|---|---|
+| `dev` | desenvolvimento local | PostgreSQL | dados fictícios de desenvolvimento |
+| `test` | testes automatizados | H2 em memória | fixtures próprias e isoladas |
+| `prod` | produção | PostgreSQL | sem inicialização automática de usuários ou dados da aplicação |
+
+### Desenvolvimento
+
+O profile `dev` é utilizado no ambiente local.
+
+Ao iniciar a aplicação com um banco vazio, os initializers de desenvolvimento criam dados fictícios para facilitar o desenvolvimento e os testes manuais da API.
+
+Esses dados são exclusivos do ambiente de desenvolvimento e não são utilizados pelos testes automatizados nem pelo ambiente de produção.
+
+O `docker-compose.yml` ativa automaticamente o profile:
+
+```text
+dev
+```
+
+### Testes
+
+Os testes automatizados utilizam o profile `test` e um banco H2 em memória.
+
+Os dados necessários para os testes são criados por fixtures próprias, independentes dos initializers de desenvolvimento. Essa separação mantém os testes reproduzíveis e evita dependência dos dados utilizados no ambiente local.
+A suíte de testes pode ser executada com:
+
+```bash
+./gradlew test
+```
+
+### Produção
+
+O ambiente de produção utiliza exclusivamente o profile `prod`.
+
+Nesse ambiente, os initializers de desenvolvimento não são carregados e a aplicação não cria automaticamente usuários ou dados financeiros.
+
+A estrutura do banco de dados é controlada pelas migrations versionadas do Flyway, enquanto os dados de produção permanecem independentes dos ambientes de desenvolvimento e teste.
+
 ## Executando com Docker Compose
 
-O ambiente Docker de desenvolvimento inicia:
+O ambiente Docker de desenvolvimento utiliza o profile `dev` e inicia:
 
 - PostgreSQL
 - Finance Family API
+
+Na primeira inicialização de um banco vazio, a aplicação cria dados fictícios
+de desenvolvimento para facilitar testes manuais e a integração com clientes locais.
 
 Para construir as imagens e iniciar os containers:
 
@@ -483,6 +529,6 @@ https://finance-api.ronneyrocha.com.br/actuator/health
 
 ## Status do Projeto
 
-A API backend e sua infraestrutura de produção estão em desenvolvimento ativo.
+A API backend e sua infraestrutura de produção estão operacionais, com evolução contínua de funcionalidades, testes e integrações.
 
 Atualmente, o projeto possui recursos para autenticação, gerenciamento de transações, categorização financeira, cartões de crédito, compras parceladas, metas financeiras, dashboards, acesso seguro em produção e recuperação automática após falhas de deploy.
