@@ -1,10 +1,12 @@
 package com.ronney.finance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ronney.finance.config.TestDataInitializer;
 import com.ronney.finance.dto.request.LoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -16,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestDataInitializer.class)
 public abstract class BaseIntegrationTest {
     @Autowired
     protected MockMvc mockMvc;
@@ -27,8 +30,8 @@ public abstract class BaseIntegrationTest {
 
         LoginRequest request =
                 new LoginRequest(
-                        "ronneyrv@gmail.com",
-                        "123456"
+                        "user.one@example.test",
+                        "test-password"
                 );
 
         MvcResult result =
