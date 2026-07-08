@@ -6,18 +6,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-public interface CreditCardInstallmentRepository extends JpaRepository<CreditCardInstallment, UUID> {
-    List<CreditCardInstallment> findByCreditCardId(
+public interface CreditCardInstallmentRepository
+        extends JpaRepository<CreditCardInstallment, UUID> {
+
+    List<CreditCardInstallment> findByPurchaseCreditCardId(
             UUID creditCardId
     );
 
-    List<CreditCardInstallment> findByCreditCardIdAndInvoiceMonthAndInvoiceYear(
+    List<CreditCardInstallment>
+    findByPurchaseCreditCardIdAndInvoiceMonthAndInvoiceYear(
             UUID creditCardId,
             Integer invoiceMonth,
             Integer invoiceYear
     );
 
-    List<CreditCardInstallment> findByCreditCardIdAndPaidFalse(
+    List<CreditCardInstallment> findByPurchaseCreditCardIdAndPaidFalse(
             UUID creditCardId
     );
 }

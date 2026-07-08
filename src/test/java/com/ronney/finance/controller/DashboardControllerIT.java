@@ -39,6 +39,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "amount":%d,
                 "transactionDate":"2026-07-01",
                 "type":"INCOME",
+                "paymentMethod":"BANK_TRANSFER",
                 "categoryId":"%s",
                 "subCategoryId":"%s"
             }

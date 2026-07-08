@@ -1,5 +1,6 @@
 package com.ronney.finance.dto.response;
 
+import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -37,6 +38,12 @@ public record TransactionResponse(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         TransactionType type,
+
+        @Schema(
+                description = "Payment method used for the transaction",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        PaymentMethod paymentMethod,
 
         @Schema(
                 description = "Category identifier",

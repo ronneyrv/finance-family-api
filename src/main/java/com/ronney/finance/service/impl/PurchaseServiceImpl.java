@@ -2,6 +2,7 @@ package com.ronney.finance.service.impl;
 
 import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
+import com.ronney.finance.domain.entity.Purchase;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
@@ -10,10 +11,13 @@ import com.ronney.finance.dto.response.InvoiceResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
+import com.ronney.finance.repository.PurchaseRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.PurchaseService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,9 +32,11 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInstallmentRepository installmentRepository;
+    private final PurchaseRepository purchaseRepository;
     private final CurrentUserService currentUserService;
 
     @Override
+    @Transactional
     public List<InstallmentResponse> createPurchase(
             UUID creditCardId,
             PurchaseRequest request
@@ -49,6 +55,15 @@ public class PurchaseServiceImpl implements PurchaseService {
                         )
                 );
 
+        Purchase purchase = Purchase.builder()
+                .id(UUID.randomUUID())
+                .description(request.description())
+                .totalAmount(request.totalAmount())
+                .purchaseDate(request.purchaseDate())
+                .installmentCount(request.installments())
+                .creditCard(card)
+                .build();
+
         BigDecimal installmentAmount = request.totalAmount()
                 .divide(
                         BigDecimal.valueOf(request.installments()),
@@ -66,35 +81,47 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         for (int i = 1; i <= request.installments(); i++) {
 
-            LocalDate currentInvoice =
-                    invoiceDate.plusMonths(i - 1);
+            LocalDate currentInvoice = invoiceDate.plusMonths(i - 1);
+
+            BigDecimal currentInstallmentAmount = installmentAmount;
+
+            if (i == request.installments()) {
+
+                BigDecimal previousInstallmentsTotal =
+                        installmentAmount.multiply(
+                                BigDecimal.valueOf(request.installments() - 1L)
+                        );
+
+                currentInstallmentAmount = request.totalAmount().subtract(previousInstallmentsTotal);
+            }
 
             CreditCardInstallment installment =
                     CreditCardInstallment.builder()
                             .id(UUID.randomUUID())
-                            .description(request.description())
-                            .amount(installmentAmount)
+                            .amount(currentInstallmentAmount)
                             .installmentNumber(i)
-                            .totalInstallments(request.installments())
                             .invoiceMonth(currentInvoice.getMonthValue())
                             .invoiceYear(currentInvoice.getYear())
-                            .purchaseDate(request.purchaseDate())
                             .paid(false)
-                            .creditCard(card)
+                            .purchase(purchase)
                             .build();
 
             installments.add(installment);
         }
 
-        installmentRepository.saveAll(installments);
+        purchase.setInstallments(installments);
 
-        return installments
+        Purchase savedPurchase = purchaseRepository.save(purchase);
+
+        return savedPurchase
+                .getInstallments()
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public InvoiceResponse getInvoice(
             UUID creditCardId,
             Integer month,
@@ -115,11 +142,11 @@ public class PurchaseServiceImpl implements PurchaseService {
                 );
 
         List<CreditCardInstallment> installments = installmentRepository
-                        .findByCreditCardIdAndInvoiceMonthAndInvoiceYear(
-                                creditCardId,
-                                month,
-                                year
-                        );
+                .findByPurchaseCreditCardIdAndInvoiceMonthAndInvoiceYear(
+                        creditCardId,
+                        month,
+                        year
+                );
 
         if (installments.isEmpty()) {
             throw new ResourceNotFoundException("Invoice not found.");
@@ -133,7 +160,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 );
 
         List<CreditCardInstallment> openInstallments = installmentRepository
-                .findByCreditCardIdAndPaidFalse(
+                .findByPurchaseCreditCardIdAndPaidFalse(
                         creditCardId
                 );
 
@@ -150,8 +177,8 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .stream()
                 .map(i ->
                         new InvoiceInstallmentResponse(
-                                i.getDescription(),
-                                i.getInstallmentNumber() + "/" + i.getTotalInstallments(),
+                                i.getPurchase().getDescription(),
+                                i.getInstallmentNumber() + "/" + i.getPurchase().getInstallmentCount(),
                                 i.getAmount(),
                                 i.getPaid(),
                                 i.getPaidAt()
@@ -172,6 +199,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     }
 
     @Override
+    @Transactional
     public void payInvoice(
             UUID creditCardId,
             Integer month,
@@ -186,11 +214,12 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Credit card not found.")
         );
 
-        List<CreditCardInstallment> installments = installmentRepository.findByCreditCardIdAndInvoiceMonthAndInvoiceYear(
-                creditCardId,
-                month,
-                year
-        );
+        List<CreditCardInstallment> installments = installmentRepository
+                .findByPurchaseCreditCardIdAndInvoiceMonthAndInvoiceYear(
+                                creditCardId,
+                                month,
+                                year
+                        );
 
         if (installments.isEmpty()) {
             throw new ResourceNotFoundException("Invoice not found.");
@@ -216,9 +245,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         return new InstallmentResponse(
                 installment.getId(),
-                installment.getDescription(),
+                installment.getPurchase().getDescription(),
                 installment.getInstallmentNumber(),
-                installment.getTotalInstallments(),
+                installment.getPurchase().getInstallmentCount(),
                 installment.getAmount(),
                 installment.getInvoiceMonth(),
                 installment.getInvoiceYear(),

@@ -1,5 +1,6 @@
 package com.ronney.finance.dto.request;
 
+import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -43,6 +44,18 @@ public record TransactionRequest(
         )
         @NotNull
         TransactionType type,
+
+        @Schema(
+                description = "Payment method used for the transaction",
+                example = "PIX",
+                allowableValues = {
+                        "PIX",
+                        "CASH",
+                        "DEBIT_CARD",
+                        "BANK_TRANSFER"
+                }
+        )
+        PaymentMethod paymentMethod,
 
         @Schema(
                 description = "Category identifier",

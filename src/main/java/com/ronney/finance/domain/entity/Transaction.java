@@ -1,5 +1,6 @@
 package com.ronney.finance.domain.entity;
 
+import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,6 +28,10 @@ public class Transaction {
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method")
+    private PaymentMethod paymentMethod;
 
     @Column(nullable = false)
     private LocalDate transactionDate;
