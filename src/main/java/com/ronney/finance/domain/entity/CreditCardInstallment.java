@@ -11,32 +11,25 @@ import java.util.UUID;
 @Table(name = "credit_card_installments")
 @Getter
 @Setter
-@Builder@NoArgsConstructor@AllArgsConstructor
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreditCardInstallment {
 
     @Id
     private UUID id;
 
-    @Column(nullable = false)
-    private String description;
-
-    @Column(nullable = false,precision = 15, scale = 2)
+    @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "installment_number", nullable = false)
     private Integer installmentNumber;
-
-    @Column(name = "total_installments", nullable = false)
-    private Integer totalInstallments;
 
     @Column(name = "invoice_month", nullable = false)
     private Integer invoiceMonth;
 
     @Column(name = "invoice_year", nullable = false)
     private Integer invoiceYear;
-
-    @Column(name = "purchase_date", nullable = false)
-    private LocalDate purchaseDate;
 
     @Column(nullable = false)
     private Boolean paid;
@@ -45,6 +38,6 @@ public class CreditCardInstallment {
     private LocalDate paidAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "credit_card_id", nullable = false)
-    private CreditCard creditCard;
+    @JoinColumn(name = "purchase_id", nullable = false)
+    private Purchase purchase;
 }

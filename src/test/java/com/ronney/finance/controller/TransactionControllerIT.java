@@ -3,6 +3,7 @@ package com.ronney.finance.controller;
 import com.ronney.finance.BaseIntegrationTest;
 import com.ronney.finance.domain.entity.Category;
 import com.ronney.finance.domain.entity.SubCategory;
+import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.repository.CategoryRepository;
 import com.ronney.finance.repository.SubCategoryRepository;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                     "amount":10000,
                     "transactionDate":"2026-06-23",
                     "type":"INCOME",
+                    "paymentMethod":"BANK_TRANSFER",
                     "categoryId":"%s",
                     "subCategoryId":"%s"
                 }
@@ -71,6 +73,17 @@ class TransactionControllerIT extends BaseIntegrationTest {
                         .get("id")
                         .asText()
         );
+    }
+
+    private Category createExpenseCategory() {
+
+        Category category = Category.builder()
+                .id(UUID.randomUUID())
+                .name("Expense Test " + UUID.randomUUID())
+                .type(TransactionType.EXPENSE)
+                .build();
+
+        return categoryRepository.save(category);
     }
 
     @Test
@@ -137,5 +150,116 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                 )
                 )
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldCreateExpenseWithPaymentMethod() throws Exception {
+
+        String token = getToken();
+
+        Category category = createExpenseCategory();
+
+        String body = """
+            {
+                "description":"Supermercado",
+                "amount":250.00,
+                "transactionDate":"2026-07-08",
+                "type":"EXPENSE",
+                "paymentMethod":"PIX",
+                "categoryId":"%s",
+                "subCategoryId":null
+            }
+            """.formatted(category.getId());
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("EXPENSE"))
+                .andExpect(jsonPath("$.paymentMethod").value("PIX"));
+    }
+
+    @Test
+    void shouldRejectTransactionWithoutPaymentMethod() throws Exception {
+
+        String token = getToken();
+
+        Category category = createExpenseCategory();
+
+        String body = """
+            {
+                "description":"Supermercado",
+                "amount":250.00,
+                "transactionDate":"2026-07-08",
+                "type":"EXPENSE",
+                "categoryId":"%s",
+                "subCategoryId":null
+            }
+            """.formatted(category.getId());
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(
+                                "Payment method is required for all transactions."
+                        ));
+    }
+
+    @Test
+    void shouldRejectIncomeWithDebitCard() throws Exception {
+
+        String token = getToken();
+
+        Category category = categoryRepository
+                .findByName("Receita")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Salário")
+                .orElseThrow();
+
+        String body = """
+            {
+                "description":"Salário",
+                "amount":4500.00,
+                "transactionDate":"2026-07-08",
+                "type":"INCOME",
+                "paymentMethod":"DEBIT_CARD",
+                "categoryId":"%s",
+                "subCategoryId":"%s"
+            }
+            """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(
+                                "Debit card is not allowed for income transactions."
+                        ));
     }
 }

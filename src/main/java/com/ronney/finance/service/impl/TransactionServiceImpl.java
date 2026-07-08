@@ -4,6 +4,8 @@ import com.ronney.finance.domain.entity.Category;
 import com.ronney.finance.domain.entity.SubCategory;
 import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.PaymentMethod;
+import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.request.TransactionRequest;
 import com.ronney.finance.dto.response.TransactionResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
@@ -34,6 +36,8 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse create(TransactionRequest request) {
 
         User user = currentUserService.getAuthenticatedUser();
+
+        validatePaymentMethod(request);
 
         Category category = categoryRepository
                 .findById(request.categoryId())
@@ -77,6 +81,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .amount(request.amount())
                 .transactionDate(request.transactionDate())
                 .type(request.type())
+                .paymentMethod(request.paymentMethod())
                 .user(user)
                 .category(category)
                 .subCategory(subCategory)
@@ -137,6 +142,8 @@ public class TransactionServiceImpl implements TransactionService {
     ) {
         User user = currentUserService.getAuthenticatedUser();
 
+        validatePaymentMethod(request);
+
         Transaction transaction = transactionRepository.findByIdAndUserId(
                 id,
                 user.getId()
@@ -172,6 +179,8 @@ public class TransactionServiceImpl implements TransactionService {
 
         transaction.setType(request.type());
 
+        transaction.setPaymentMethod(request.paymentMethod());
+
         transaction.setCategory(category);
 
         transaction.setSubCategory(subCategory);
@@ -196,6 +205,24 @@ public class TransactionServiceImpl implements TransactionService {
         transactionRepository.delete(transaction);
     }
 
+    private void validatePaymentMethod(
+            TransactionRequest request
+    ) {
+        if (request.paymentMethod() == null) {
+            throw new IllegalArgumentException(
+                    "Payment method is required for all transactions."
+            );
+        }
+
+        if (request.type() == TransactionType.INCOME
+                && request.paymentMethod() == PaymentMethod.DEBIT_CARD) {
+
+            throw new IllegalArgumentException(
+                    "Debit card is not allowed for income transactions."
+            );
+        }
+    }
+
     private TransactionResponse toResponse(
             Transaction transaction
     ) {
@@ -205,6 +232,7 @@ public class TransactionServiceImpl implements TransactionService {
                 transaction.getAmount(),
                 transaction.getTransactionDate(),
                 transaction.getType(),
+                transaction.getPaymentMethod(),
                 transaction.getCategory().getId(),
                 transaction.getCategory().getName(),
                 transaction.getSubCategory() != null ? transaction.getSubCategory().getId() : null,
