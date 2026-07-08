@@ -58,6 +58,13 @@ public class TestDataInitializer {
                     .build();
 
             categoryRepository.save(incomeCategory);
+            Category expenseCategory = Category.builder()
+                    .id(UUID.randomUUID())
+                    .name("Alimentação")
+                    .type(TransactionType.EXPENSE)
+                    .build();
+
+            categoryRepository.save(expenseCategory);
 
             SubCategory salarySubCategory = SubCategory.builder()
                     .id(UUID.randomUUID())
@@ -66,6 +73,14 @@ public class TestDataInitializer {
                     .build();
 
             subCategoryRepository.save(salarySubCategory);
+            SubCategory groceriesSubCategory = SubCategory.builder()
+                    .id(UUID.randomUUID())
+                    .name("Supermercado")
+                    .category(expenseCategory)
+                    .build();
+
+            subCategoryRepository.save(groceriesSubCategory);
+
             userRepository.save(userOne);
             userRepository.save(userTwo);
         };

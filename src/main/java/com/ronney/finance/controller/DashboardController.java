@@ -2,6 +2,7 @@ package com.ronney.finance.controller;
 
 import com.ronney.finance.dto.response.CategoryExpenseResponse;
 import com.ronney.finance.dto.response.DashboardSummaryResponse;
+import com.ronney.finance.dto.response.MonthlyProjectionResponse;
 import com.ronney.finance.dto.response.MonthlySummaryResponse;
 import com.ronney.finance.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -105,5 +106,21 @@ public class DashboardController {
             @RequestParam Integer year
     ) {
         return dashboardService.getMonthlySummary(year);
+    }
+
+    @Operation(
+            summary = "Get financial projection",
+            description = """
+                Returns the monthly financial projection for the selected year.
+
+                Includes recurring income, recurring expenses,
+                credit card installments and projected balance.
+                """
+    )
+    @GetMapping("/projection")
+    public List<MonthlyProjectionResponse> getProjection(
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getProjection(year);
     }
 }

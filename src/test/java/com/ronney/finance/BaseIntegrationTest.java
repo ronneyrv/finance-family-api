@@ -27,11 +27,21 @@ public abstract class BaseIntegrationTest {
     protected ObjectMapper objectMapper;
 
     protected String getToken() throws Exception {
+        return getToken(
+                "user.one@example.test",
+                "test-password"
+        );
+    }
+
+    protected String getToken(
+            String email,
+            String password
+    ) throws Exception {
 
         LoginRequest request =
                 new LoginRequest(
-                        "user.one@example.test",
-                        "test-password"
+                        email,
+                        password
                 );
 
         MvcResult result =
@@ -40,8 +50,8 @@ public abstract class BaseIntegrationTest {
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(
                                                 objectMapper.writeValueAsString(
-                                                                request
-                                                        )
+                                                        request
+                                                )
                                         )
                         )
                         .andExpect(status().isOk())
