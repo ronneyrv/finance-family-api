@@ -23,4 +23,11 @@ public interface CreditCardInstallmentRepository
     List<CreditCardInstallment> findByPurchaseCreditCardIdAndPaidFalse(
             UUID creditCardId
     );
+
+    List<CreditCardInstallment>
+    findByPurchaseCreditCardUserIdAndInvoiceMonthAndInvoiceYear(
+            UUID userId,
+            Integer invoiceMonth,
+            Integer invoiceYear
+    );
 }
