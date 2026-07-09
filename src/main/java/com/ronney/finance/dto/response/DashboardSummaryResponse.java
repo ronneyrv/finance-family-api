@@ -24,6 +24,20 @@ public record DashboardSummaryResponse(
                 example = "6599.50",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
-        BigDecimal balance
+        BigDecimal balance,
+
+        @Schema(
+                description = "Current cash balance",
+                example = "500.00",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+                BigDecimal cashBalance,
+
+        @Schema(
+                description = "Current bank balance",
+                example = "6099.50",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        BigDecimal bankBalance
 ) {
 }

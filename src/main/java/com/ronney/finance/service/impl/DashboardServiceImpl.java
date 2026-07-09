@@ -3,6 +3,7 @@ package com.ronney.finance.service.impl;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.response.CategoryExpenseResponse;
 import com.ronney.finance.dto.response.DashboardSummaryResponse;
@@ -59,24 +60,72 @@ public class DashboardServiceImpl implements DashboardService {
     public DashboardSummaryResponse getSummary() {
         User user = currentUserService.getAuthenticatedUser();
 
-        BigDecimal totalIcome = transactionRepository.sumByUserIdAndType(
-                user.getId(),
-                TransactionType.INCOME
-        );
+        BigDecimal totalIncome =
+                transactionRepository.sumByUserIdAndType(
+                        user.getId(),
+                        TransactionType.INCOME
+                );
 
-        BigDecimal totalExpense = transactionRepository.sumByUserIdAndType(
-                user.getId(),
-                TransactionType.EXPENSE
-        );
+        BigDecimal totalExpense =
+                transactionRepository.sumByUserIdAndType(
+                        user.getId(),
+                        TransactionType.EXPENSE
+                );
 
-        BigDecimal balance = totalIcome.subtract(
-                totalExpense
-        );
+        BigDecimal balance =
+                totalIncome.subtract(totalExpense);
+
+        BigDecimal cashIncome =
+                transactionRepository
+                        .sumByUserIdAndTypeAndPaymentMethods(
+                                user.getId(),
+                                TransactionType.INCOME,
+                                List.of(PaymentMethod.CASH)
+                        );
+
+        BigDecimal cashExpense =
+                transactionRepository
+                        .sumByUserIdAndTypeAndPaymentMethods(
+                                user.getId(),
+                                TransactionType.EXPENSE,
+                                List.of(PaymentMethod.CASH)
+                        );
+
+        BigDecimal cashBalance =
+                cashIncome.subtract(cashExpense);
+
+        BigDecimal bankIncome =
+                transactionRepository
+                        .sumByUserIdAndTypeAndPaymentMethods(
+                                user.getId(),
+                                TransactionType.INCOME,
+                                List.of(
+                                        PaymentMethod.PIX,
+                                        PaymentMethod.BANK_TRANSFER
+                                )
+                        );
+
+        BigDecimal bankExpense =
+                transactionRepository
+                        .sumByUserIdAndTypeAndPaymentMethods(
+                                user.getId(),
+                                TransactionType.EXPENSE,
+                                List.of(
+                                        PaymentMethod.PIX,
+                                        PaymentMethod.BANK_TRANSFER,
+                                        PaymentMethod.DEBIT_CARD
+                                )
+                        );
+
+        BigDecimal bankBalance =
+                bankIncome.subtract(bankExpense);
 
         return new DashboardSummaryResponse(
-                totalIcome,
+                totalIncome,
                 totalExpense,
-                balance
+                balance,
+                cashBalance,
+                bankBalance
         );
     }
 
