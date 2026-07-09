@@ -1,6 +1,7 @@
 package com.ronney.finance.repository;
 
 import com.ronney.finance.domain.entity.Transaction;
+import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.repository.projection.MonthlySummaryProjection;
 import org.springframework.data.domain.Page;
@@ -93,5 +94,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<MonthlySummaryProjection> findMonthlySummary(
             @Param("userId") UUID userId,
             @Param("year") Integer year
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM Transaction t
+        WHERE t.user.id = :userId
+        AND t.type = :type
+        AND t.paymentMethod IN :paymentMethods
+        """)
+    BigDecimal sumByUserIdAndTypeAndPaymentMethods(
+            @Param("userId") UUID userId,
+            @Param("type") TransactionType type,
+            @Param("paymentMethods")
+            List<PaymentMethod> paymentMethods
     );
 }

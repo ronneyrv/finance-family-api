@@ -6,6 +6,7 @@ import com.ronney.finance.domain.entity.SubCategory;
 import com.ronney.finance.repository.CategoryRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.SubCategoryRepository;
+import com.ronney.finance.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +29,13 @@ class DashboardControllerIT extends BaseIntegrationTest {
     @Autowired
     private RecurringTransactionRepository recurringTransactionRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     @BeforeEach
-    void cleanRecurringTransactions() {
+    void cleanTestData() {
         recurringTransactionRepository.deleteAll();
+        transactionRepository.deleteAll();
     }
 
     private void createIncome(
@@ -159,6 +164,53 @@ class DashboardControllerIT extends BaseIntegrationTest {
                                 .contentType(
                                         MediaType.APPLICATION_JSON
                                 )
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+    }
+
+    private void createTransaction(
+            String token,
+            int amount,
+            String type,
+            String paymentMethod
+    ) throws Exception {
+
+        boolean income = type.equals("INCOME");
+
+        Category category = categoryRepository
+                .findByName(income ? "Receita" : "Alimentação")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName(income ? "Salário" : "Supermercado")
+                .orElseThrow();
+
+        String body = """
+            {
+                "description":"Transaction test",
+                "amount":%d,
+                "transactionDate":"2026-07-01",
+                "type":"%s",
+                "paymentMethod":"%s",
+                "categoryId":"%s",
+                "subCategoryId":"%s"
+            }
+            """.formatted(
+                amount,
+                type,
+                paymentMethod,
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isCreated());
@@ -424,6 +476,77 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(
                         jsonPath("$[9].projectedBalance")
                                 .value(7000)
+                );
+    }
+
+    @Test
+    void shouldReturnCashAndBankBalances()
+            throws Exception {
+
+        String token = getToken();
+
+        createTransaction(
+                token,
+                10000,
+                "INCOME",
+                "BANK_TRANSFER"
+        );
+
+        createTransaction(
+                token,
+                1000,
+                "INCOME",
+                "CASH"
+        );
+
+        createTransaction(
+                token,
+                2000,
+                "EXPENSE",
+                "PIX"
+        );
+
+        createTransaction(
+                token,
+                500,
+                "EXPENSE",
+                "DEBIT_CARD"
+        );
+
+        createTransaction(
+                token,
+                300,
+                "EXPENSE",
+                "CASH"
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/summary")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.totalIncome")
+                                .value(11000)
+                )
+                .andExpect(
+                        jsonPath("$.totalExpense")
+                                .value(2800)
+                )
+                .andExpect(
+                        jsonPath("$.balance")
+                                .value(8200)
+                )
+                .andExpect(
+                        jsonPath("$.cashBalance")
+                                .value(700)
+                )
+                .andExpect(
+                        jsonPath("$.bankBalance")
+                                .value(7500)
                 );
     }
 }
