@@ -46,6 +46,18 @@ public record TransactionResponse(
         PaymentMethod paymentMethod,
 
         @Schema(
+                description = "Financial account identifier",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        UUID accountId,
+
+        @Schema(
+                description = "Financial account name",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        String accountName,
+
+        @Schema(
                 description = "Category identifier",
                 accessMode = Schema.AccessMode.READ_ONLY
         )

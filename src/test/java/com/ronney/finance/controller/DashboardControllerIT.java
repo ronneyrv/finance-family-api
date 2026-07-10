@@ -38,18 +38,57 @@ class DashboardControllerIT extends BaseIntegrationTest {
         transactionRepository.deleteAll();
     }
 
+    private UUID createFinancialAccount(
+            String token
+    ) throws Exception {
+
+        String body = """
+            {
+                "name":"Dashboard Test Account",
+                "accountType":"DIGITAL_ACCOUNT",
+                "initialBalance":5000.00
+            }
+            """;
+
+        String response = mockMvc.perform(
+                        post("/api/v1/financial-accounts")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(
+                objectMapper
+                        .readTree(response)
+                        .get("id")
+                        .asText()
+        );
+    }
+
     private void createIncome(
             String token,
             int amount
     ) throws Exception {
+
+        UUID accountId = createFinancialAccount(token);
+
         Category category =
                 categoryRepository
                         .findByName("Receita")
                         .orElseThrow();
+
         SubCategory subCategory =
                 subCategoryRepository
                         .findByName("Salário")
                         .orElseThrow();
+
         String body = """
             {
                 "description":"Salário",
@@ -57,11 +96,13 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "transactionDate":"2026-07-01",
                 "type":"INCOME",
                 "paymentMethod":"BANK_TRANSFER",
+                "accountId":"%s",
                 "categoryId":"%s",
                 "subCategoryId":"%s"
             }
             """.formatted(
                 amount,
+                accountId,
                 category.getId(),
                 subCategory.getId()
         );
@@ -178,6 +219,8 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         boolean income = type.equals("INCOME");
 
+        UUID accountId = createFinancialAccount(token);
+
         Category category = categoryRepository
                 .findByName(income ? "Receita" : "Alimentação")
                 .orElseThrow();
@@ -193,6 +236,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "transactionDate":"2026-07-01",
                 "type":"%s",
                 "paymentMethod":"%s",
+                "accountId":"%s",
                 "categoryId":"%s",
                 "subCategoryId":"%s"
             }
@@ -200,6 +244,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 amount,
                 type,
                 paymentMethod,
+                accountId,
                 category.getId(),
                 subCategory.getId()
         );
