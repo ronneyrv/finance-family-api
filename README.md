@@ -2,7 +2,7 @@
 
 API REST para gestão financeira pessoal e familiar, desenvolvida com Java e Spring Boot.
 
-A aplicação permite gerenciar transações financeiras, cartões de crédito, compras parceladas, metas financeiras, categorias de despesas e indicadores consolidados em dashboard.
+A aplicação permite gerenciar transações financeiras, contas financeiras, cartões de crédito, compras parceladas, pagamentos de faturas, transações recorrentes, metas financeiras, categorias de despesas e indicadores consolidados em dashboard.
 
 O projeto também possui uma infraestrutura de produção com imagens Docker imutáveis, configuração versionada com Docker Compose, validação automática de saúde da aplicação e rollback automático em caso de falha no deploy.
 
@@ -11,10 +11,15 @@ O projeto também possui uma infraestrutura de produção com imagens Docker imu
 - autenticação baseada em JWT
 - organização dos dados financeiros por família (`Household`)
 - gerenciamento de receitas e despesas
+- gerenciamento de contas financeiras
+- cálculo de saldo atual das contas
 - categorias e subcategorias financeiras
 - gerenciamento de cartões de crédito
 - registro de compras parceladas
 - acompanhamento de faturas e parcelas
+- pagamento de faturas vinculado a contas financeiras
+- separação entre despesas econômicas e movimentações de pagamento de cartão
+- transações recorrentes
 - metas financeiras
 - resumos financeiros mensais
 - análise de despesas por categoria
@@ -36,10 +41,12 @@ O projeto também possui uma infraestrutura de produção com imagens Docker imu
 - Spring Boot Actuator
 - JWT
 - Lombok
+- Gradle
 
 ### Banco de Dados
 
 - PostgreSQL 17
+- H2 para testes automatizados
 - Flyway
 
 ### Documentação
@@ -101,31 +108,44 @@ O domínio principal da aplicação é composto pelas seguintes entidades:
 - `User`
 - `Household`
 - `Transaction`
+- `FinancialAccount`
 - `Category`
 - `SubCategory`
 - `CreditCard`
+- `Purchase`
 - `CreditCardInstallment`
+- `RecurringTransaction`
 - `Goal`
 
-Os dados financeiros são associados ao contexto familiar (`Household`) do usuário autenticado.
+As transações financeiras pertencem a usuários e são vinculadas a contas financeiras.
 
-Essa estrutura permite que usuários pertencentes à mesma família compartilhem a visão financeira consolidada, mantendo a organização dos dados dentro do mesmo contexto familiar.
+Os usuários pertencem a um `Household`, permitindo a construção de visões financeiras individuais e consolidadas no contexto familiar.
 
-## Executando o Projeto
+O pagamento de uma fatura de cartão de crédito gera uma movimentação financeira específica, permitindo reduzir o saldo da conta utilizada no pagamento sem contabilizar novamente a compra como uma nova despesa econômica.
+
+## Ambiente de Desenvolvimento
+
+O projeto pode ser executado localmente de duas formas:
+
+1. ambiente completo com Docker Compose, executando PostgreSQL e API em containers;
+2. PostgreSQL executado em container e API executada diretamente na máquina com Gradle.
+
+A segunda opção é útil durante o desenvolvimento do backend, pois permite executar e reiniciar a aplicação sem reconstruir a imagem Docker a cada alteração.
 
 ### Pré-requisitos
 
-Para executar o ambiente completo com Docker:
+Para executar o ambiente completo com Docker Compose:
 
 - Git
 - Docker
 - Docker Compose
 
-Para executar a aplicação diretamente na máquina:
+Para executar a API diretamente na máquina utilizando o PostgreSQL em container:
 
-- Java 21
-- PostgreSQL
 - Git
+- Docker
+- Docker Compose
+- Java 21
 
 O projeto utiliza o Gradle Wrapper, portanto não é necessário instalar o Gradle globalmente.
 
@@ -138,73 +158,134 @@ cd finance-family-api
 
 ## Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+O projeto utiliza variáveis de ambiente para configurar o banco de dados, autenticação JWT e outras configurações dependentes do ambiente.
+
+Crie o arquivo `.env` na raiz do projeto a partir do arquivo de exemplo:
+
+```bash
+cp .env.example .env
+```
+
+O arquivo `.env.example` contém a estrutura esperada:
 
 ```env
 DB_NAME=finance
-DB_USERNAME=postgres
-DB_PASSWORD=sua_senha
+DB_URL=jdbc:postgresql://localhost:5432/finance
+DB_USERNAME=finance
+DB_PASSWORD=finance
 
-JWT_SECRET=sua_chave_jwt_segura
+JWT_SECRET=replace-with-a-secret-of-at-least-32-bytes
 JWT_EXPIRATION=86400000
+
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
 ```
 
-O arquivo `.env` contém informações sensíveis e não deve ser enviado para o repositório.
+Antes de iniciar a aplicação, substitua os valores de exemplo conforme necessário.
+
+O arquivo `.env` contém configurações locais e informações sensíveis e não deve ser enviado para o repositório.
+
+### Uso das Variáveis no Ambiente Local
+
+No Docker Compose de desenvolvimento:
+
+- `DB_NAME` define o nome do banco criado pelo PostgreSQL;
+- `DB_USERNAME` define o usuário do banco;
+- `DB_PASSWORD` define a senha do banco;
+- `JWT_SECRET` define a chave utilizada para assinatura dos tokens JWT;
+- `JWT_EXPIRATION` define o tempo de expiração dos tokens.
+
+O container da API recebe uma URL JDBC construída pelo próprio `docker-compose.yml` utilizando o hostname interno do serviço PostgreSQL:
+
+```text
+jdbc:postgresql://postgres:5432/${DB_NAME}
+```
+
+Quando a API é executada diretamente na máquina com o profile `dev`, a conexão utiliza:
+
+```text
+jdbc:postgresql://localhost:5432/${DB_NAME}
+```
+
+A variável `DB_URL` não é utilizada pelo profile `dev`. Ela é mantida para configurações de ambientes que recebem a URL completa de conexão, como o profile de produção.
 
 ## Profiles da Aplicação
 
-A aplicação utiliza profiles do Spring Boot para separar as configurações e os dados utilizados em cada ambiente.
+A aplicação utiliza profiles do Spring Boot para separar as configurações e os dados de cada ambiente.
 
 | Profile | Ambiente | Banco de dados | Inicialização de dados |
 |---|---|---|---|
 | `dev` | desenvolvimento local | PostgreSQL | dados fictícios de desenvolvimento |
 | `test` | testes automatizados | H2 em memória | fixtures próprias e isoladas |
-| `prod` | produção | PostgreSQL | sem inicialização automática de usuários ou dados da aplicação |
+| `prod` | produção | PostgreSQL | sem inicialização automática de dados de desenvolvimento |
 
-### Desenvolvimento
+### Profile `dev`
 
 O profile `dev` é utilizado no ambiente local.
 
-Ao iniciar a aplicação com um banco vazio, os initializers de desenvolvimento criam dados fictícios para facilitar o desenvolvimento e os testes manuais da API.
+Ao iniciar a aplicação com um banco vazio, os initializers de desenvolvimento criam dados fictícios para facilitar o desenvolvimento, os testes manuais da API e a integração com clientes locais.
 
 Esses dados são exclusivos do ambiente de desenvolvimento e não são utilizados pelos testes automatizados nem pelo ambiente de produção.
 
-O `docker-compose.yml` ativa automaticamente o profile:
+O `docker-compose.yml` ativa automaticamente o profile por meio da variável:
 
 ```text
-dev
+SPRING_PROFILES_ACTIVE=dev
 ```
 
-### Testes
+Nesse profile:
+
+- a aplicação conecta ao PostgreSQL local;
+- o Flyway executa as migrations pendentes;
+- o Hibernate valida o schema existente;
+- o Swagger UI permanece habilitado;
+- os endpoints `health` e `info` do Actuator ficam expostos;
+- o health check apresenta detalhes úteis para desenvolvimento.
+
+### Profile `test`
 
 Os testes automatizados utilizam o profile `test` e um banco H2 em memória.
 
 Os dados necessários para os testes são criados por fixtures próprias, independentes dos initializers de desenvolvimento. Essa separação mantém os testes reproduzíveis e evita dependência dos dados utilizados no ambiente local.
+
 A suíte de testes pode ser executada com:
 
 ```bash
 ./gradlew test
 ```
 
-### Produção
+Para executar a suíte a partir de um estado limpo:
+
+```bash
+./gradlew clean test
+```
+
+### Profile `prod`
 
 O ambiente de produção utiliza exclusivamente o profile `prod`.
 
-Nesse ambiente, os initializers de desenvolvimento não são carregados e a aplicação não cria automaticamente usuários ou dados financeiros.
+Nesse ambiente:
+
+- os initializers de desenvolvimento não são carregados;
+- a aplicação não cria automaticamente usuários ou dados financeiros;
+- o Hibernate valida o schema com `ddl-auto=validate`;
+- o Flyway executa as migrations pendentes;
+- Swagger UI e OpenAPI ficam desabilitados;
+- detalhes internos do health check não são expostos.
 
 A estrutura do banco de dados é controlada pelas migrations versionadas do Flyway, enquanto os dados de produção permanecem independentes dos ambientes de desenvolvimento e teste.
 
-## Executando com Docker Compose
+## Executando o Ambiente Local
+
+### Opção 1 — API e PostgreSQL com Docker Compose
 
 O ambiente Docker de desenvolvimento utiliza o profile `dev` e inicia:
 
-- PostgreSQL
-- Finance Family API
+- PostgreSQL;
+- Finance Family API.
 
-Na primeira inicialização de um banco vazio, a aplicação cria dados fictícios
-de desenvolvimento para facilitar testes manuais e a integração com clientes locais.
+Na primeira inicialização de um banco vazio, a aplicação executa as migrations do Flyway e carrega os dados fictícios configurados para o ambiente de desenvolvimento.
 
-Para construir as imagens e iniciar os containers:
+Para construir a imagem da API e iniciar os containers:
 
 ```bash
 docker compose up --build
@@ -216,10 +297,28 @@ Para executar em segundo plano:
 docker compose up --build -d
 ```
 
-Para verificar os containers:
+Para verificar o estado dos containers:
 
 ```bash
 docker compose ps
+```
+
+Para acompanhar os logs da API:
+
+```bash
+docker compose logs -f finance-api
+```
+
+Para acompanhar os logs do PostgreSQL:
+
+```bash
+docker compose logs -f postgres
+```
+
+Após a inicialização, a API estará disponível em:
+
+```text
+http://localhost:8080
 ```
 
 Para encerrar o ambiente:
@@ -228,48 +327,123 @@ Para encerrar o ambiente:
 docker compose down
 ```
 
-Para encerrar o ambiente e remover também o volume do PostgreSQL:
+Esse comando remove os containers e a rede criada pelo Compose, mas preserva o volume com os dados do PostgreSQL.
+
+Para encerrar o ambiente e remover também o volume do banco de dados:
 
 ```bash
 docker compose down -v
 ```
 
-> Atenção: a opção `-v` remove permanentemente os dados do banco de dados local armazenados no volume Docker.
+> Atenção: a opção `-v` remove os dados armazenados no volume local do PostgreSQL. Na próxima inicialização, o banco será criado novamente, as migrations do Flyway serão executadas desde a primeira versão e os dados fictícios do profile `dev` serão recriados.
 
-Após a inicialização, a API estará disponível em:
+### Opção 2 — PostgreSQL com Docker e API com Gradle
 
-```text
-http://localhost:8080
-```
+Durante o desenvolvimento do backend, é possível executar apenas o PostgreSQL no Docker e iniciar a API diretamente na máquina.
 
-## Executando a API Localmente
-
-Também é possível executar a aplicação diretamente pelo Gradle utilizando o profile `dev`.
-
-Primeiro, configure as variáveis de ambiente:
+Primeiro, inicie o banco de dados:
 
 ```bash
-export DB_URL=jdbc:postgresql://localhost:5432/finance
-export DB_USERNAME=postgres
-export DB_PASSWORD=sua_senha
-export JWT_SECRET=sua_chave_jwt_segura
-export JWT_EXPIRATION=86400000
+docker compose up -d postgres
 ```
 
-Em seguida, execute:
+Verifique se o container está saudável:
+
+```bash
+docker compose ps
+```
+
+Como o arquivo `.env` não é carregado automaticamente pelo processo Java iniciado no terminal, carregue as variáveis na sessão atual:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+Em seguida, execute a aplicação:
 
 ```bash
 ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
-O profile `dev`:
+Nesse fluxo:
 
-- conecta ao PostgreSQL por meio de variáveis de ambiente
-- valida o schema do banco com Hibernate
-- executa as migrations do Flyway
-- habilita o Swagger UI
-- expõe os endpoints `health` e `info` do Actuator
-- habilita detalhes do health check para desenvolvimento
+```text
+PostgreSQL
+    ↓
+Docker Container
+    ↓
+localhost:5432
+    ↓
+Spring Boot API
+    ↓
+Gradle / JVM local
+    ↓
+localhost:8080
+```
+
+O profile `dev` utiliza a seguinte conexão:
+
+```text
+jdbc:postgresql://localhost:5432/${DB_NAME}
+```
+
+Por isso, a execução local da API utiliza `DB_NAME`, `DB_USERNAME` e `DB_PASSWORD`. Não é necessário exportar `DB_URL` para esse fluxo.
+
+Para interromper a API executada pelo Gradle, utilize `Ctrl+C`.
+
+Para interromper o PostgreSQL:
+
+```bash
+docker compose stop postgres
+```
+
+Para remover o container e a rede do ambiente local, preservando o volume do banco:
+
+```bash
+docker compose down
+```
+
+### Validando a Aplicação
+
+Com a API em execução, valide o health check:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Uma aplicação saudável deve responder com status `UP`.
+
+A documentação interativa da API pode ser acessada em:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+A especificação OpenAPI está disponível em:
+
+```text
+http://localhost:8080/v3/api-docs
+```
+
+Para validar a compilação do projeto sem executar os testes:
+
+```bash
+./gradlew compileJava
+```
+
+Para executar os testes:
+
+```bash
+./gradlew test
+```
+
+Para executar a suíte completa a partir de um estado limpo:
+
+```bash
+./gradlew clean test
+```
 
 ## Migrations do Banco de Dados
 
@@ -283,17 +457,20 @@ src/main/resources/db/migration
 
 As migrations atuais são:
 
-```text
-V1  Criação de households
-V2  Criação de usuários
-V3  Criação de categorias
-V4  Criação de subcategorias
-V5  Criação de transações
-V6  Criação de metas financeiras
-V7  Criação de cartões de crédito
-V8  Criação de parcelas de cartão
-V9  Adição da data de pagamento das parcelas
-```
+| Migration | Descrição |
+|---|---|
+| `V1` | criação de households |
+| `V2` | criação de usuários |
+| `V3` | criação de categorias |
+| `V4` | criação de subcategorias |
+| `V5` | criação de contas financeiras |
+| `V6` | criação de transações |
+| `V7` | criação de metas financeiras |
+| `V8` | criação de cartões de crédito |
+| `V9` | criação de compras |
+| `V10` | criação de parcelas de cartão de crédito |
+| `V11` | criação de transações recorrentes |
+| `V12` | adição do tipo de transação e suporte a pagamentos de fatura |
 
 O Flyway executa automaticamente as migrations pendentes durante a inicialização da aplicação.
 
@@ -303,22 +480,46 @@ O Hibernate utiliza:
 spring.jpa.hibernate.ddl-auto=validate
 ```
 
-Dessa forma, o Hibernate valida se o mapeamento das entidades corresponde ao schema existente, mas não cria ou altera automaticamente a estrutura do banco.
+Dessa forma, o Hibernate valida se o mapeamento das entidades corresponde ao schema existente, mas não cria nem altera automaticamente a estrutura do banco.
 
-## Documentação da API
+### Recriando o Banco Local
 
-O Swagger UI está habilitado no ambiente de desenvolvimento.
+Como o ambiente de desenvolvimento utiliza dados fictícios, o banco local pode ser recriado quando necessário.
 
-Após iniciar a aplicação, acesse:
+Para remover os containers e o volume do PostgreSQL:
 
-```text
-http://localhost:8080/swagger-ui/index.html
+```bash
+docker compose down -v
 ```
 
-A especificação OpenAPI está disponível em:
+Depois, inicie novamente o ambiente:
 
-```text
-http://localhost:8080/v3/api-docs
+```bash
+docker compose up --build -d
+```
+
+Nesse processo:
+
+1. um novo volume do PostgreSQL é criado;
+2. o banco configurado em `DB_NAME` é criado;
+3. o Flyway executa todas as migrations em ordem;
+4. o Hibernate valida o schema resultante;
+5. os initializers do profile `dev` carregam os dados fictícios de desenvolvimento.
+
+> Esse procedimento deve ser utilizado apenas no ambiente local. A remoção do volume apaga permanentemente os dados armazenados no PostgreSQL de desenvolvimento.
+
+### Verificando os Logs das Migrations
+
+Para acompanhar a inicialização da API e a execução das migrations:
+
+```bash
+docker compose logs -f finance-api
+```
+
+Quando a API é executada diretamente com Gradle, as informações do Flyway aparecem no próprio terminal:
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
 ## Monitoramento da Aplicação
@@ -444,13 +645,13 @@ docker-compose.prod.yml
 
 Durante o deploy, o pipeline:
 
-1. faz checkout do commit exato associado à imagem candidata
-2. valida a configuração candidata do Docker Compose
-3. realiza o pull da imagem antes de alterar a configuração de runtime
-4. cria um backup do Compose atualmente utilizado em produção
-5. sincroniza a configuração versionada com o ambiente de runtime
-6. realiza o deploy da imagem candidata
-7. valida a saúde da aplicação
+1. faz checkout do commit exato associado à imagem candidata;
+2. valida a configuração candidata do Docker Compose;
+3. realiza o pull da imagem antes de alterar a configuração de runtime;
+4. cria um backup do Compose atualmente utilizado em produção;
+5. sincroniza a configuração versionada com o ambiente de runtime;
+6. realiza o deploy da imagem candidata;
+7. valida a saúde da aplicação.
 
 As credenciais e configurações sensíveis permanecem fora do repositório Git e são carregadas a partir do arquivo de ambiente armazenado diretamente na VM.
 
@@ -478,12 +679,12 @@ Se a nova versão não atingir o estado `UP` dentro do período configurado, o s
 
 O processo:
 
-1. identifica a falha da versão candidata
-2. restaura a configuração anterior do Docker Compose
-3. valida a configuração restaurada
-4. recria o container utilizando a imagem imutável anterior
-5. aguarda a recuperação da aplicação
-6. valida novamente o health check
+1. identifica a falha da versão candidata;
+2. restaura a configuração anterior do Docker Compose;
+3. valida a configuração restaurada;
+4. recria o container utilizando a imagem imutável anterior;
+5. aguarda a recuperação da aplicação;
+6. valida novamente o health check.
 
 O rollback restaura conjuntamente:
 
@@ -501,17 +702,17 @@ O comportamento foi validado através de um cenário controlado de falha, confir
 
 O ambiente de produção utiliza diferentes camadas de proteção:
 
-- autenticação JWT para endpoints protegidos
-- comunicação pública através de HTTPS
-- Nginx como reverse proxy público
-- certificados TLS emitidos pela Let's Encrypt
-- renovação automática de certificados com Certbot
-- aplicação vinculada apenas a `127.0.0.1:8080`
-- ausência de acesso público direto à porta TCP `8080`
-- secrets de produção mantidos fora do repositório
-- imagens Docker de produção identificadas por tags SHA imutáveis
-- validação de saúde após novos deploys
-- rollback automático após deploys não saudáveis
+- autenticação JWT para endpoints protegidos;
+- comunicação pública através de HTTPS;
+- Nginx como reverse proxy público;
+- certificados TLS emitidos pela Let's Encrypt;
+- renovação automática de certificados com Certbot;
+- aplicação vinculada apenas a `127.0.0.1:8080`;
+- ausência de acesso público direto à porta TCP `8080`;
+- secrets de produção mantidos fora do repositório;
+- imagens Docker de produção identificadas por tags SHA imutáveis;
+- validação de saúde após novos deploys;
+- rollback automático após deploys não saudáveis.
 
 ## Endpoint de Produção
 
@@ -531,4 +732,4 @@ https://finance-api.ronneyrocha.com.br/actuator/health
 
 A API backend e sua infraestrutura de produção estão operacionais, com evolução contínua de funcionalidades, testes e integrações.
 
-Atualmente, o projeto possui recursos para autenticação, gerenciamento de transações, categorização financeira, cartões de crédito, compras parceladas, metas financeiras, dashboards, acesso seguro em produção e recuperação automática após falhas de deploy.
+Atualmente, o projeto possui recursos para autenticação, gerenciamento de contas e transações financeiras, categorização, cartões de crédito, compras parceladas, pagamentos de faturas, transações recorrentes, metas financeiras, dashboards, acesso seguro em produção e recuperação automática após falhas de deploy.
