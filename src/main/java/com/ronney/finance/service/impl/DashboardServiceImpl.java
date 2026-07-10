@@ -4,6 +4,7 @@ import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.PaymentMethod;
+import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.response.CategoryExpenseResponse;
 import com.ronney.finance.dto.response.DashboardSummaryResponse;
@@ -63,13 +64,15 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal totalIncome =
                 transactionRepository.sumByUserIdAndType(
                         user.getId(),
-                        TransactionType.INCOME
+                        TransactionType.INCOME,
+                        TransactionKind.REGULAR
                 );
 
         BigDecimal totalExpense =
                 transactionRepository.sumByUserIdAndType(
                         user.getId(),
-                        TransactionType.EXPENSE
+                        TransactionType.EXPENSE,
+                        TransactionKind.REGULAR
                 );
 
         BigDecimal balance =

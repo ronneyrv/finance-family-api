@@ -2,15 +2,18 @@ package com.ronney.finance.service.impl;
 
 import com.ronney.finance.domain.entity.FinancialAccount;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.request.FinancialAccountRequest;
 import com.ronney.finance.dto.response.FinancialAccountResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
 import com.ronney.finance.repository.FinancialAccountRepository;
+import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.FinancialAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +24,7 @@ public class FinancialAccountServiceImpl
 
     private final FinancialAccountRepository financialAccountRepository;
     private final CurrentUserService currentUserService;
+    private final TransactionRepository transactionRepository;
 
     @Override
     public FinancialAccountResponse create(
@@ -116,11 +120,33 @@ public class FinancialAccountServiceImpl
     private FinancialAccountResponse toResponse(
             FinancialAccount financialAccount
     ) {
+
+        BigDecimal totalIncome =
+                transactionRepository
+                        .sumByFinancialAccountIdAndType(
+                                financialAccount.getId(),
+                                TransactionType.INCOME
+                        );
+
+        BigDecimal totalExpense =
+                transactionRepository
+                        .sumByFinancialAccountIdAndType(
+                                financialAccount.getId(),
+                                TransactionType.EXPENSE
+                        );
+
+        BigDecimal currentBalance =
+                financialAccount
+                        .getInitialBalance()
+                        .add(totalIncome)
+                        .subtract(totalExpense);
+
         return new FinancialAccountResponse(
                 financialAccount.getId(),
                 financialAccount.getName(),
                 financialAccount.getAccountType(),
-                financialAccount.getInitialBalance()
+                financialAccount.getInitialBalance(),
+                currentBalance
         );
     }
 }

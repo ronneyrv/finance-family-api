@@ -1,5 +1,6 @@
 package com.ronney.finance.controller;
 
+import com.ronney.finance.dto.request.InvoicePaymentRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
@@ -146,12 +147,16 @@ public class PurchaseController {
                     description = "Invoice year",
                     example = "2026"
             )
-            @RequestParam Integer year
+            @RequestParam Integer year,
+
+            @Valid
+            @RequestBody InvoicePaymentRequest request
     ) {
         purchaseService.payInvoice(
                 id,
                 month,
-                year
+                year,
+                request
         );
     }
 }

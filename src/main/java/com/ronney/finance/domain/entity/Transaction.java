@@ -1,6 +1,7 @@
 package com.ronney.finance.domain.entity;
 
 import com.ronney.finance.domain.enums.PaymentMethod;
+import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,6 +40,10 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TransactionType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_kind", nullable = false)
+    private TransactionKind transactionKind;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
