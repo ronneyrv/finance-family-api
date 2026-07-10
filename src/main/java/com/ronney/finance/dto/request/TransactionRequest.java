@@ -58,6 +58,13 @@ public record TransactionRequest(
         PaymentMethod paymentMethod,
 
         @Schema(
+                description = "Financial account identifier",
+                example = "4d0df1d8-8b62-4c0e-bef8-7dbfb74b27f6"
+        )
+        @NotNull
+        UUID accountId,
+
+        @Schema(
                 description = "Category identifier",
                 example = "4d0df1d8-8b62-4c0e-bef8-7dbfb74b27f6"
         )

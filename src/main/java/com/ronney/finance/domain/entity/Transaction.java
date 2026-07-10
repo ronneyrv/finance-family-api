@@ -30,7 +30,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method")
+    @Column(name = "payment_method", nullable = false)
     private PaymentMethod paymentMethod;
 
     @Column(nullable = false)
@@ -51,6 +51,10 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_category_id")
     private SubCategory subCategory;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "financial_account_id", nullable = false)
+    private FinancialAccount financialAccount;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

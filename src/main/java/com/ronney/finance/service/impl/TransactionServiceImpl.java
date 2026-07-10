@@ -1,6 +1,7 @@
 package com.ronney.finance.service.impl;
 
 import com.ronney.finance.domain.entity.Category;
+import com.ronney.finance.domain.entity.FinancialAccount;
 import com.ronney.finance.domain.entity.SubCategory;
 import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.entity.User;
@@ -10,6 +11,7 @@ import com.ronney.finance.dto.request.TransactionRequest;
 import com.ronney.finance.dto.response.TransactionResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
 import com.ronney.finance.repository.CategoryRepository;
+import com.ronney.finance.repository.FinancialAccountRepository;
 import com.ronney.finance.repository.SubCategoryRepository;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
@@ -29,6 +31,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final SubCategoryRepository subCategoryRepository;
+    private final FinancialAccountRepository financialAccountRepository;
     private final CurrentUserService currentUserService;
 
     @Override
@@ -38,6 +41,17 @@ public class TransactionServiceImpl implements TransactionService {
         User user = currentUserService.getAuthenticatedUser();
 
         validatePaymentMethod(request);
+
+        FinancialAccount financialAccount = financialAccountRepository
+                .findByIdAndUserId(
+                        request.accountId(),
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Financial account not found."
+                        )
+                );
 
         Category category = categoryRepository
                 .findById(request.categoryId())
@@ -85,6 +99,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .user(user)
                 .category(category)
                 .subCategory(subCategory)
+                .financialAccount(financialAccount)
                 .build();
 
         transaction = transactionRepository.save(transaction);
@@ -151,6 +166,17 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found.")
         );
 
+        FinancialAccount financialAccount = financialAccountRepository
+                .findByIdAndUserId(
+                        request.accountId(),
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Financial account not found."
+                        )
+                );
+
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow (() -> new ResourceNotFoundException("Category not found.")
         );
@@ -180,6 +206,8 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setType(request.type());
 
         transaction.setPaymentMethod(request.paymentMethod());
+
+        transaction.setFinancialAccount(financialAccount);
 
         transaction.setCategory(category);
 
@@ -233,6 +261,8 @@ public class TransactionServiceImpl implements TransactionService {
                 transaction.getTransactionDate(),
                 transaction.getType(),
                 transaction.getPaymentMethod(),
+                transaction.getFinancialAccount().getId(),
+                transaction.getFinancialAccount().getName(),
                 transaction.getCategory().getId(),
                 transaction.getCategory().getName(),
                 transaction.getSubCategory() != null ? transaction.getSubCategory().getId() : null,
