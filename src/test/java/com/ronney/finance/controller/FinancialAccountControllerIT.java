@@ -111,6 +111,9 @@ class FinancialAccountControllerIT extends BaseIntegrationTest {
                 .andExpect(
                         jsonPath("$.initialBalance")
                                 .value(2500.00)
+                ).andExpect(
+                        jsonPath("$.currentBalance")
+                                .value(2500.00)
                 );
     }
 

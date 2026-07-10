@@ -2,8 +2,13 @@ package com.ronney.finance.service.impl;
 
 import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
+import com.ronney.finance.domain.entity.FinancialAccount;
 import com.ronney.finance.domain.entity.Purchase;
+import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.TransactionKind;
+import com.ronney.finance.domain.enums.TransactionType;
+import com.ronney.finance.dto.request.InvoicePaymentRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceInstallmentResponse;
@@ -11,7 +16,9 @@ import com.ronney.finance.dto.response.InvoiceResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
+import com.ronney.finance.repository.FinancialAccountRepository;
 import com.ronney.finance.repository.PurchaseRepository;
+import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.PurchaseService;
 
@@ -34,6 +41,8 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final CreditCardInstallmentRepository installmentRepository;
     private final PurchaseRepository purchaseRepository;
     private final CurrentUserService currentUserService;
+    private final FinancialAccountRepository financialAccountRepository;
+    private final TransactionRepository transactionRepository;
 
     @Override
     @Transactional
@@ -203,16 +212,32 @@ public class PurchaseServiceImpl implements PurchaseService {
     public void payInvoice(
             UUID creditCardId,
             Integer month,
-            Integer year
+            Integer year,
+            InvoicePaymentRequest request
     ) {
         User user = currentUserService.getAuthenticatedUser();
 
-        creditCardRepository.findByIdAndUserId(
-                creditCardId,
-                user.getId()
-        )
-                .orElseThrow(() -> new ResourceNotFoundException("Credit card not found.")
-        );
+        FinancialAccount financialAccount = financialAccountRepository
+                .findByIdAndUserId(
+                        request.accountId(),
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Financial account not found."
+                        )
+                );
+
+        CreditCard card = creditCardRepository
+                .findByIdAndUserId(
+                        creditCardId,
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Credit card not found."
+                        )
+                );
 
         List<CreditCardInstallment> installments = installmentRepository
                 .findByPurchaseCreditCardIdAndInvoiceMonthAndInvoiceYear(
@@ -229,6 +254,13 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw new IllegalStateException("Invoice already paid.");
         }
 
+        BigDecimal invoiceTotal = installments.stream()
+                .map(CreditCardInstallment::getAmount)
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
+
         LocalDate paymentDate = LocalDate.now();
 
         installments.forEach(installment -> {
@@ -237,6 +269,29 @@ public class PurchaseServiceImpl implements PurchaseService {
         });
 
         installmentRepository.saveAll(installments);
+
+        Transaction paymentTransaction = Transaction.builder()
+                .id(UUID.randomUUID())
+                .description(
+                        "Credit card invoice payment - "
+                                + card.getName()
+                                + " "
+                                + month
+                                + "/"
+                                + year
+                )
+                .amount(invoiceTotal)
+                .transactionDate(paymentDate)
+                .type(TransactionType.EXPENSE)
+                .transactionKind(TransactionKind.CREDIT_CARD_PAYMENT)
+                .paymentMethod(request.paymentMethod())
+                .user(user)
+                .category(null)
+                .subCategory(null)
+                .financialAccount(financialAccount)
+                .build();
+
+        transactionRepository.save(paymentTransaction);
     }
 
     private InstallmentResponse toResponse(

@@ -32,6 +32,13 @@ public record FinancialAccountResponse(
                 example = "2500.00",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
-        BigDecimal initialBalance
+        BigDecimal initialBalance,
+
+        @Schema(
+                description = "Current account balance",
+                example = "2000.00",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+                BigDecimal currentBalance
 ) {
 }

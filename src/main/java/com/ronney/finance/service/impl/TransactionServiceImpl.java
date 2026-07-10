@@ -6,6 +6,7 @@ import com.ronney.finance.domain.entity.SubCategory;
 import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.PaymentMethod;
+import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.request.TransactionRequest;
 import com.ronney.finance.dto.response.TransactionResponse;
@@ -95,6 +96,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .amount(request.amount())
                 .transactionDate(request.transactionDate())
                 .type(request.type())
+                .transactionKind(TransactionKind.REGULAR)
                 .paymentMethod(request.paymentMethod())
                 .user(user)
                 .category(category)
@@ -260,11 +262,17 @@ public class TransactionServiceImpl implements TransactionService {
                 transaction.getAmount(),
                 transaction.getTransactionDate(),
                 transaction.getType(),
+                transaction.getTransactionKind(),
                 transaction.getPaymentMethod(),
                 transaction.getFinancialAccount().getId(),
                 transaction.getFinancialAccount().getName(),
-                transaction.getCategory().getId(),
-                transaction.getCategory().getName(),
+                transaction.getCategory() != null
+                        ? transaction.getCategory().getId()
+                        : null,
+
+                transaction.getCategory() != null
+                        ? transaction.getCategory().getName()
+                        : null,
                 transaction.getSubCategory() != null ? transaction.getSubCategory().getId() : null,
                 transaction.getSubCategory() != null ? transaction.getSubCategory().getName() : null
         );

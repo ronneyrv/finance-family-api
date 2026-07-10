@@ -1,8 +1,10 @@
 package com.ronney.finance.service;
 
+import com.ronney.finance.dto.request.InvoicePaymentRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +24,7 @@ public interface PurchaseService {
     void payInvoice(
             UUID creditCardId,
             Integer month,
-            Integer year
+            Integer year,
+            InvoicePaymentRequest request
     );
 }
