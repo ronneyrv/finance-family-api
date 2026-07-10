@@ -8,8 +8,8 @@ SOURCE_COMPOSE="$APP_DIR/docker-compose.prod.yml"
 RUNTIME_COMPOSE="$COMPOSE_DIR/docker-compose.yml"
 BACKUP_COMPOSE="$COMPOSE_DIR/docker-compose.yml.bak"
 
-HEALTH_URL="http://localhost:8080/actuator/health"
-MAX_ATTEMPTS=18
+HEALTH_URL="http://127.0.0.1:8080/actuator/health"
+MAX_ATTEMPTS=30
 SLEEP_SECONDS=5
 
 if [ "$#" -ne 2 ]; then
@@ -68,7 +68,10 @@ echo "==> Current version: ${CURRENT_TAG:-unknown}"
 echo "==> Target version: $NEW_TAG"
 
 echo "==> Deploying target version"
-IMAGE_TAG="$NEW_TAG" docker compose up -d --force-recreate
+
+IMAGE_TAG="$NEW_TAG" docker compose \
+  --env-file "$COMPOSE_DIR/.env" \
+  up -d --force-recreate
 
 echo "==> Waiting for application health check"
 
@@ -107,7 +110,9 @@ IMAGE_TAG="$CURRENT_TAG" docker compose \
 
 echo "==> Recreating previous production version"
 
-IMAGE_TAG="$CURRENT_TAG" docker compose up -d --force-recreate
+IMAGE_TAG="$CURRENT_TAG" docker compose \
+  --env-file "$COMPOSE_DIR/.env" \
+  up -d --force-recreate
 
 echo "==> Waiting for rollback health check"
 
