@@ -206,6 +206,31 @@ class PurchaseControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldReturnEmptyInvoiceWhenNoInstallmentsExist() throws Exception {
+
+        String token = getToken();
+
+        UUID cardId = createCreditCard(token);
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/{id}/invoice", cardId)
+                                .param("month", "10")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.card").value("Nubank"))
+                .andExpect(jsonPath("$.month").value(10))
+                .andExpect(jsonPath("$.year").value(2026))
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.installments").isArray())
+                .andExpect(jsonPath("$.installments").isEmpty());
+    }
+
+    @Test
     void shouldPayInvoiceAndRestoreAvailableLimit() throws Exception {
 
         String token = getToken();

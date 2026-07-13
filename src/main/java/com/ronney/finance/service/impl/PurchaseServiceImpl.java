@@ -158,7 +158,20 @@ public class PurchaseServiceImpl implements PurchaseService {
                 );
 
         if (installments.isEmpty()) {
-            throw new ResourceNotFoundException("Invoice not found.");
+
+            return new InvoiceResponse(
+                    card.getName(),
+                    card.getClosingDay(),
+                    card.getDueDay(),
+                    month,
+                    year,
+                    BigDecimal.ZERO,
+                    calculateAvailableLimit(
+                            creditCardId,
+                            card
+                    ),
+                    List.of()
+            );
         }
 
         BigDecimal total = installments.stream()
@@ -167,20 +180,6 @@ public class PurchaseServiceImpl implements PurchaseService {
                         BigDecimal.ZERO,
                         BigDecimal::add
                 );
-
-        List<CreditCardInstallment> openInstallments = installmentRepository
-                .findByPurchaseCreditCardIdAndPaidFalse(
-                        creditCardId
-                );
-
-        BigDecimal usedLimit = openInstallments.stream()
-                .map(CreditCardInstallment::getAmount)
-                .reduce(
-                        BigDecimal.ZERO,
-                        BigDecimal::add
-                );
-
-        BigDecimal availableLimit = card.getCreditLimit().subtract(usedLimit);
 
         List<InvoiceInstallmentResponse> items = installments
                 .stream()
@@ -194,6 +193,12 @@ public class PurchaseServiceImpl implements PurchaseService {
                         )
                 )
                 .toList();
+
+        BigDecimal availableLimit =
+                calculateAvailableLimit(
+                        creditCardId,
+                        card
+                );
 
         return new InvoiceResponse(
                 card.getName(),
@@ -291,6 +296,26 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .build();
 
         transactionRepository.save(paymentTransaction);
+    }
+
+    private BigDecimal calculateAvailableLimit(
+            UUID creditCardId,
+            CreditCard card
+    ) {
+
+        List<CreditCardInstallment> openInstallments =
+                installmentRepository.findByPurchaseCreditCardIdAndPaidFalse(
+                        creditCardId
+                );
+
+        BigDecimal usedLimit = openInstallments.stream()
+                .map(CreditCardInstallment::getAmount)
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
+
+        return card.getCreditLimit().subtract(usedLimit);
     }
 
     private String buildInvoicePaymentDescription(
