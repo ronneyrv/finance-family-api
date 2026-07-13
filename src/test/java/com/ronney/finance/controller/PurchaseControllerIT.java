@@ -317,7 +317,7 @@ class PurchaseControllerIT extends BaseIntegrationTest {
                         )
                                 .value(
                                         hasItem(
-                                                "Credit card invoice payment - Nubank 10/2026"
+                                                "Pagamento da fatura - Nubank (10/2026)"
                                         )
                                 )
                 )
