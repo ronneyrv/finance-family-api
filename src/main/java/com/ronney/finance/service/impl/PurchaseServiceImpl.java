@@ -273,12 +273,11 @@ public class PurchaseServiceImpl implements PurchaseService {
         Transaction paymentTransaction = Transaction.builder()
                 .id(UUID.randomUUID())
                 .description(
-                        "Credit card invoice payment - "
-                                + card.getName()
-                                + " "
-                                + month
-                                + "/"
-                                + year
+                        buildInvoicePaymentDescription(
+                                card,
+                                month,
+                                year
+                        )
                 )
                 .amount(invoiceTotal)
                 .transactionDate(paymentDate)
@@ -292,6 +291,19 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .build();
 
         transactionRepository.save(paymentTransaction);
+    }
+
+    private String buildInvoicePaymentDescription(
+            CreditCard card,
+            int month,
+            int year
+    ) {
+        return String.format(
+                "Pagamento da fatura - %s (%02d/%d)",
+                card.getName(),
+                month,
+                year
+        );
     }
 
     private InstallmentResponse toResponse(
