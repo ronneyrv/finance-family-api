@@ -1,8 +1,10 @@
 package com.ronney.finance.controller;
 
 import com.ronney.finance.dto.request.LoginRequest;
+import com.ronney.finance.dto.request.RefreshTokenRequest;
 import com.ronney.finance.dto.request.RegisterRequest;
 import com.ronney.finance.dto.response.LoginResponse;
+import com.ronney.finance.dto.response.RefreshTokenResponse;
 import com.ronney.finance.dto.response.RegisterResponse;
 import com.ronney.finance.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -74,5 +76,32 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(authService.register(request));
+    }
+
+    @Operation(
+            summary = "Refresh access token",
+            description = "Generates a new access token using a valid refresh token."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Access token refreshed successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid or expired refresh token"
+            )
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<RefreshTokenResponse> refresh(
+
+            @Valid
+            @RequestBody
+            RefreshTokenRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                authService.refresh(request)
+        );
     }
 }

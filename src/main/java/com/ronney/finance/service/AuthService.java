@@ -1,14 +1,18 @@
 package com.ronney.finance.service;
 
 import com.ronney.finance.domain.entity.Household;
+import com.ronney.finance.domain.entity.RefreshToken;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.dto.request.LoginRequest;
+import com.ronney.finance.dto.request.RefreshTokenRequest;
 import com.ronney.finance.dto.request.RegisterRequest;
 import com.ronney.finance.dto.response.LoginResponse;
+import com.ronney.finance.dto.response.RefreshTokenResponse;
 import com.ronney.finance.dto.response.RegisterResponse;
 import com.ronney.finance.exception.BusinessException;
 import com.ronney.finance.repository.HouseholdRepository;
 import com.ronney.finance.repository.UserRepository;
+import com.ronney.finance.security.CustomUserDetails;
 import com.ronney.finance.security.CustomUserDetailsService;
 import com.ronney.finance.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +37,12 @@ public class AuthService {
     private final UserRepository userRepository;
     private final HouseholdRepository householdRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     // Authentication
 
     public LoginResponse login(LoginRequest request) {
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
@@ -44,11 +50,20 @@ public class AuthService {
                 )
         );
 
-        UserDetails user = userDetailsService.loadUserByUsername(request.email());
+        CustomUserDetails user =
+                (CustomUserDetails) userDetailsService
+                        .loadUserByUsername(request.email());
 
-        String token = jwtService.generateToken(user);
+        String accessToken = jwtService.generateToken(user);
 
-        return new LoginResponse(token);
+        String refreshToken = refreshTokenService
+                .create(user.getUser())
+                .getToken();
+
+        return new LoginResponse(
+                accessToken,
+                refreshToken
+        );
     }
 
     // Registration
@@ -78,5 +93,27 @@ public class AuthService {
         );
 
         return new RegisterResponse(ACCOUNT_CREATED_MESSAGE);
+    }
+
+    public RefreshTokenResponse refresh(
+            RefreshTokenRequest request
+    ) {
+
+        RefreshToken refreshToken =
+                refreshTokenService.findValidToken(
+                        request.refreshToken()
+                );
+
+        UserDetails user =
+                userDetailsService.loadUserByUsername(
+                        refreshToken.getUser().getEmail()
+                );
+
+        String accessToken =
+                jwtService.generateToken(user);
+
+        return new RefreshTokenResponse(
+                accessToken
+        );
     }
 }
