@@ -81,11 +81,7 @@ public class PurchaseController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Invoice returned successfully"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Invoice not found"
+                    description = "Invoice retrieved successfully"
             )
     })
     @GetMapping("/{id}/invoice")
