@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
+import java.time.Year;
+import java.time.YearMonth;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -593,5 +595,33 @@ class DashboardControllerIT extends BaseIntegrationTest {
                         jsonPath("$.bankBalance")
                                 .value(7500)
                 );
+    }
+
+    @Test
+    void shouldReturnDashboardFilters() throws Exception {
+
+        String token = getToken();
+
+        int currentYear = Year.now().getValue();
+        int currentMonth = YearMonth.now().getMonthValue();
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/filters")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.years").isArray())
+                .andExpect(jsonPath("$.years.length()").value(2))
+                .andExpect(jsonPath("$.years[0]").value(currentYear))
+                .andExpect(jsonPath("$.years[1]").value(currentYear + 1))
+                .andExpect(jsonPath("$.months").isArray())
+                .andExpect(jsonPath("$.months.length()").value(12))
+                .andExpect(jsonPath("$.months[0]").value(1))
+                .andExpect(jsonPath("$.months[11]").value(12))
+                .andExpect(jsonPath("$.defaultYear").value(currentYear))
+                .andExpect(jsonPath("$.defaultMonth").value(currentMonth));
     }
 }

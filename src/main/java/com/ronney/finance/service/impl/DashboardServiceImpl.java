@@ -18,8 +18,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -278,6 +280,31 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardFiltersResponse getFilters() {
-        throw new UnsupportedOperationException("Not implemented yet");
+        User user = currentUserService.getAuthenticatedUser();
+
+        YearMonth now = YearMonth.now();
+        int currentYear = now.getYear();
+
+        int firstYear = transactionRepository
+                .findFirstTransactionDate(user.getId())
+                .map(LocalDate::getYear)
+                .orElse(currentYear);
+
+        List<Integer> years = IntStream
+                .rangeClosed(firstYear, currentYear + 1)
+                .boxed()
+                .toList();
+
+        List<Integer> months = IntStream
+                .rangeClosed(1, 12)
+                .boxed()
+                .toList();
+
+        return new DashboardFiltersResponse(
+                years,
+                months,
+                now.getYear(),
+                now.getMonthValue()
+        );
     }
 }
