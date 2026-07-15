@@ -6,10 +6,7 @@ import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
-import com.ronney.finance.dto.response.CategoryExpenseResponse;
-import com.ronney.finance.dto.response.DashboardSummaryResponse;
-import com.ronney.finance.dto.response.MonthlyProjectionResponse;
-import com.ronney.finance.dto.response.MonthlySummaryResponse;
+import com.ronney.finance.dto.response.*;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
@@ -277,5 +274,10 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return projections;
+    }
+
+    @Override
+    public DashboardFiltersResponse getFilters() {
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 }
