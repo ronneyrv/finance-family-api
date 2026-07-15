@@ -239,7 +239,7 @@ public class CategoryInitializer {
              * FINANCEIRO
              */
             createSubCategories(
-                    investimentos,
+                    financeiro,
                     List.of(
                             "Empréstimo",
                             "Financiamento",
