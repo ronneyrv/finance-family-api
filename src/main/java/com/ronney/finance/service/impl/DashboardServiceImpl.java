@@ -6,10 +6,7 @@ import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
-import com.ronney.finance.dto.response.CategoryExpenseResponse;
-import com.ronney.finance.dto.response.DashboardSummaryResponse;
-import com.ronney.finance.dto.response.MonthlyProjectionResponse;
-import com.ronney.finance.dto.response.MonthlySummaryResponse;
+import com.ronney.finance.dto.response.*;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
@@ -21,8 +18,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -277,5 +276,35 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return projections;
+    }
+
+    @Override
+    public DashboardFiltersResponse getFilters() {
+        User user = currentUserService.getAuthenticatedUser();
+
+        YearMonth now = YearMonth.now();
+        int currentYear = now.getYear();
+
+        int firstYear = transactionRepository
+                .findFirstTransactionDate(user.getId())
+                .map(LocalDate::getYear)
+                .orElse(currentYear);
+
+        List<Integer> years = IntStream
+                .rangeClosed(firstYear, currentYear + 1)
+                .boxed()
+                .toList();
+
+        List<Integer> months = IntStream
+                .rangeClosed(1, 12)
+                .boxed()
+                .toList();
+
+        return new DashboardFiltersResponse(
+                years,
+                months,
+                now.getYear(),
+                now.getMonthValue()
+        );
     }
 }

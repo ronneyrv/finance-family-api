@@ -1,9 +1,6 @@
 package com.ronney.finance.controller;
 
-import com.ronney.finance.dto.response.CategoryExpenseResponse;
-import com.ronney.finance.dto.response.DashboardSummaryResponse;
-import com.ronney.finance.dto.response.MonthlyProjectionResponse;
-import com.ronney.finance.dto.response.MonthlySummaryResponse;
+import com.ronney.finance.dto.response.*;
 import com.ronney.finance.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -122,5 +119,32 @@ public class DashboardController {
             @RequestParam Integer year
     ) {
         return dashboardService.getProjection(year);
+    }
+
+    @Operation(
+            summary = "Get dashboard filters",
+            description = """
+            Returns the available filters for the financial dashboard.
+
+            Includes:
+            - Available years
+            - Available months
+            - Default year
+            - Default month
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Dashboard filters returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/filters")
+    public DashboardFiltersResponse getFilters() {
+        return dashboardService.getFilters();
     }
 }
