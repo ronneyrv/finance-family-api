@@ -78,15 +78,15 @@ public class CategoryInitializer {
                             TransactionType.EXPENSE
                     );
 
-            Category impostos =
-                    createCategory(
-                            "Impostos",
-                            TransactionType.EXPENSE
-                    );
-
             Category investimentos =
                     createCategory(
                             "Investimentos",
+                            TransactionType.EXPENSE
+                    );
+
+            Category financeiro =
+                    createCategory(
+                            "Financeiro",
                             TransactionType.EXPENSE
                     );
 
@@ -220,18 +220,6 @@ public class CategoryInitializer {
             );
 
             /*
-             * IMPOSTOS
-             */
-            createSubCategories(
-                    impostos,
-                    List.of(
-                            "Imposto de Renda",
-                            "Taxas Bancárias",
-                            "Outros Tributos"
-                    )
-            );
-
-            /*
              * INVESTIMENTOS
              */
             createSubCategories(
@@ -244,6 +232,21 @@ public class CategoryInitializer {
                             "Fundo Imobiliário",
                             "Criptomoedas",
                             "Previdência"
+                    )
+            );
+
+            /*
+             * FINANCEIRO
+             */
+            createSubCategories(
+                    investimentos,
+                    List.of(
+                            "Empréstimo",
+                            "Financiamento",
+                            "Imposto de Renda",
+                            "Taxas Bancárias",
+                            "Saque",
+                            "Outros Tributos"
                     )
             );
 
