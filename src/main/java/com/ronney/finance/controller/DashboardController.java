@@ -147,4 +147,26 @@ public class DashboardController {
     public DashboardFiltersResponse getFilters() {
         return dashboardService.getFilters();
     }
+
+    @Operation(
+            summary = "Get current credit card invoice summary",
+            description = """
+            Returns a summary of the current invoice for each
+            credit card belonging to the authenticated user.
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Credit card summaries returned successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/credit-cards")
+    public List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries() {
+        return dashboardService.getCreditCardSummaries();
+    }
 }

@@ -11,13 +11,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDate;
 import java.time.Year;
 import java.time.YearMonth;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class DashboardControllerIT extends BaseIntegrationTest {
@@ -258,6 +263,64 @@ class DashboardControllerIT extends BaseIntegrationTest {
                                         "Bearer " + token
                                 )
                                 .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+    }
+
+    private UUID createCreditCard(String token) throws Exception {
+        String body = """
+                {
+                    "name":"Nubank",
+                    "creditLimit":10000,
+                    "closingDay":20,
+                    "dueDay":28
+                }
+                """;
+
+        String response = mockMvc.perform(
+                        post("/api/v1/credit-cards")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(objectMapper
+                .readTree(response)
+                .get("id")
+                .asText()
+        );
+    }
+
+    private void createPurchase(
+            String token,
+            UUID cardId
+    ) throws Exception {
+        LocalDate purchaseDate = LocalDate.now();
+
+        String body = String.format("""
+        {
+            "description":"Notebook",
+            "totalAmount":1200,
+            "installments":1,
+            "purchaseDate":"%s"
+        }
+        """, purchaseDate);
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isCreated());
@@ -623,5 +686,31 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.months[11]").value(12))
                 .andExpect(jsonPath("$.defaultYear").value(currentYear))
                 .andExpect(jsonPath("$.defaultMonth").value(currentMonth));
+    }
+
+    @Test
+    void shouldReturnCreditCardInvoiceSummaries() throws Exception {
+
+        String token = getToken();
+
+        UUID cardId = createCreditCard(token);
+
+        createPurchase(token, cardId);
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/credit-cards")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isNotEmpty())
+                .andExpect(jsonPath("$[0].cardName").value("Nubank"))
+                .andExpect(jsonPath("$[0].invoiceAmount").value(1200.00))
+                .andExpect(jsonPath("$[0].installmentCount").value(1))
+                .andExpect(jsonPath("$[0].dueDay").value(28))
+                .andExpect(jsonPath("$[0].hasOpenInvoice").value(true));
     }
 }

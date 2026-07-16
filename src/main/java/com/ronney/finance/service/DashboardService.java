@@ -18,4 +18,6 @@ public interface DashboardService {
     List<MonthlyProjectionResponse> getProjection(
             Integer year
     );
+
+    List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries();
 }
