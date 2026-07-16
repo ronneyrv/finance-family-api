@@ -1,5 +1,6 @@
 package com.ronney.finance.service.impl;
 
+import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
@@ -8,12 +9,14 @@ import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.response.*;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
+import com.ronney.finance.repository.CreditCardRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,6 +33,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final CurrentUserService currentUserService;
     private final RecurringTransactionRepository recurringTransactionRepository;
     private final CreditCardInstallmentRepository installmentRepository;
+    private final CreditCardRepository creditCardRepository;
 
     private boolean occursInMonth(
             RecurringTransaction recurringTransaction,
@@ -306,5 +310,59 @@ public class DashboardServiceImpl implements DashboardService {
                 now.getYear(),
                 now.getMonthValue()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries() {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        YearMonth now = YearMonth.now();
+
+        List<CreditCard> creditCards =
+                creditCardRepository.findByUserId(
+                        user.getId()
+                );
+
+        return creditCards.stream()
+                .map(card -> {
+
+                    List<CreditCardInstallment> installments =
+                            installmentRepository
+                                    .findByPurchaseCreditCardIdAndInvoiceMonthAndInvoiceYear(
+                                            card.getId(),
+                                            now.getMonthValue(),
+                                            now.getYear()
+                                    );
+
+                    BigDecimal invoiceAmount =
+                            installments.stream()
+                                    .filter(installment ->
+                                            !installment.getPaid()
+                                    )
+                                    .map(CreditCardInstallment::getAmount)
+                                    .reduce(
+                                            BigDecimal.ZERO,
+                                            BigDecimal::add
+                                    );
+
+                    long installmentCount =
+                            installments.stream()
+                                    .filter(installment ->
+                                            !installment.getPaid()
+                                    )
+                                    .count();
+
+                    return new CreditCardInvoiceSummaryResponse(
+                            card.getId(),
+                            card.getName(),
+                            invoiceAmount,
+                            (int) installmentCount,
+                            card.getDueDay(),
+                            installmentCount > 0
+                    );
+                })
+                .toList();
     }
 }
