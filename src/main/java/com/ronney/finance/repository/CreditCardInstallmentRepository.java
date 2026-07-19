@@ -1,6 +1,7 @@
 package com.ronney.finance.repository;
 
 import com.ronney.finance.domain.entity.CreditCardInstallment;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -28,6 +29,15 @@ public interface CreditCardInstallmentRepository
     findByPurchaseCreditCardUserIdAndInvoiceMonthAndInvoiceYear(
             UUID userId,
             Integer invoiceMonth,
+            Integer invoiceYear
+    );
+
+    @EntityGraph(attributePaths = {
+            "purchase",
+            "purchase.creditCard"
+    })
+    List<CreditCardInstallment> findByPurchaseCreditCardUserIdAndInvoiceYear(
+            UUID userId,
             Integer invoiceYear
     );
 }

@@ -1,5 +1,6 @@
 package com.ronney.finance.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.ronney.finance.BaseIntegrationTest;
 import com.ronney.finance.domain.entity.Category;
 import com.ronney.finance.domain.entity.SubCategory;
@@ -11,18 +12,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MvcResult;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Year;
 import java.time.YearMonth;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.hasItem;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class DashboardControllerIT extends BaseIntegrationTest {
@@ -712,5 +713,53 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[0].installmentCount").value(1))
                 .andExpect(jsonPath("$[0].dueDay").value(28))
                 .andExpect(jsonPath("$[0].hasOpenInvoice").value(true));
+    }
+
+    @Test
+    void shouldReturnCreditCardTrend() throws Exception {
+
+        String token = getToken();
+
+        UUID cardId = createCreditCard(token);
+
+        createPurchase(token, cardId);
+
+        String response = mockMvc.perform(
+                        get("/api/v1/dashboard/credit-cards/trend")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(12))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode root = objectMapper.readTree(response);
+
+        boolean hasInvoice = false;
+
+        for (JsonNode month : root) {
+
+            JsonNode cards = month.get("cards");
+
+            if (cards != null && !cards.isEmpty()) {
+
+                hasInvoice = true;
+
+                assertThat(month.get("total").decimalValue())
+                        .isGreaterThan(BigDecimal.ZERO);
+
+                assertThat(cards.get(0).get("cardName").asText())
+                        .isEqualTo("Nubank");
+
+                break;
+            }
+        }
+
+        assertThat(hasInvoice).isTrue();
     }
 }

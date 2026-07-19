@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -168,5 +169,37 @@ public class DashboardController {
     @GetMapping("/credit-cards")
     public List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries() {
         return dashboardService.getCreditCardSummaries();
+    }
+
+    @GetMapping("/credit-cards/trend")
+    @Operation(
+            summary = "Get annual credit card expense trend",
+            description = """
+                Returns the monthly evolution of credit card invoices for the selected year.
+                The response includes the monthly total and the invoice amount grouped by credit card.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Credit card trend retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    public ResponseEntity<List<MonthlyCreditCardTrendResponse>> getCreditCardTrend(
+            @RequestParam
+            @Parameter(
+                    description = "Year to generate the trend",
+                    example = "2026"
+            )
+            Integer year
+    ) {
+
+        return ResponseEntity.ok(
+                dashboardService.getCreditCardTrend(year)
+        );
     }
 }
