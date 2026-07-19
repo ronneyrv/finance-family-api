@@ -23,7 +23,15 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -364,5 +372,103 @@ public class DashboardServiceImpl implements DashboardService {
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MonthlyCreditCardTrendResponse> getCreditCardTrend(
+            Integer year
+    ) {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        List<CreditCard> creditCards =
+                creditCardRepository.findByUserId(user.getId());
+
+        List<CreditCardInstallment> installments =
+                installmentRepository
+                        .findByPurchaseCreditCardUserIdAndInvoiceYear(
+                                user.getId(),
+                                year
+                        );
+
+        Map<UUID, CreditCard> cardsById =
+                creditCards.stream()
+                        .collect(Collectors.toMap(
+                                CreditCard::getId,
+                                Function.identity()
+                        ));
+
+        Map<Month, Map<UUID, BigDecimal>> grouped =
+                new EnumMap<>(Month.class);
+
+        for (CreditCardInstallment installment : installments) {
+
+            Month month = Month.of(
+                    installment.getInvoiceMonth()
+            );
+
+            UUID cardId = installment
+                    .getPurchase()
+                    .getCreditCard()
+                    .getId();
+
+            grouped
+                    .computeIfAbsent(
+                            month,
+                            m -> new HashMap<>()
+                    )
+                    .merge(
+                            cardId,
+                            installment.getAmount(),
+                            BigDecimal::add
+                    );
+        }
+
+        List<MonthlyCreditCardTrendResponse> response = new ArrayList<>();
+
+        for (Month month : Month.values()) {
+
+            Map<UUID, BigDecimal> monthData =
+                    grouped.getOrDefault(
+                            month,
+                            Collections.emptyMap()
+                    );
+
+            List<CreditCardMonthlyExpenseResponse> cards =
+                    monthData.entrySet()
+                            .stream()
+                            .map(entry -> {
+
+                                CreditCard card = cardsById.get(entry.getKey());
+
+                                return new CreditCardMonthlyExpenseResponse(
+                                        card.getName(),
+                                        entry.getValue()
+                                );
+                            })
+                            .sorted(Comparator.comparing(
+                                    CreditCardMonthlyExpenseResponse::cardName
+                            ))
+                            .toList();
+
+            BigDecimal total =
+                    monthData.values()
+                            .stream()
+                            .reduce(
+                                    BigDecimal.ZERO,
+                                    BigDecimal::add
+                            );
+
+            response.add(
+                    new MonthlyCreditCardTrendResponse(
+                            month,
+                            total,
+                            cards
+                    )
+            );
+        }
+
+        return response;
     }
 }

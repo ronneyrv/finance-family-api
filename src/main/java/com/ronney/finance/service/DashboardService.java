@@ -20,4 +20,8 @@ public interface DashboardService {
     );
 
     List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries();
+
+    List<MonthlyCreditCardTrendResponse> getCreditCardTrend(
+            Integer year
+    );
 }
