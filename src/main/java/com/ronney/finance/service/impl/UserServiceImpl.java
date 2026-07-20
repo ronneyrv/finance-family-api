@@ -26,18 +26,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public CurrentUserResponse updateCurrentUser(UpdateCurrentUserRequest request) {
+    public CurrentUserResponse updateCurrentUser(
+            UpdateCurrentUserRequest request
+    ) {
 
         User user = currentUserService.getAuthenticatedUser();
 
-        if (!user.getEmail().equals(request.email())
-                && userRepository.existsByEmail(request.email())) {
-
-            throw new BusinessException("Email is already in use.");
-        }
-
         user.setName(request.name());
-        user.setEmail(request.email());
 
         user = userRepository.save(user);
 

@@ -40,11 +40,10 @@ class UserControllerIT extends BaseIntegrationTest {
         String token = getToken();
 
         String body = """
-            {
-                "name":"Updated User",
-                "email":"updated.user@example.test"
-            }
-            """;
+        {
+            "name": "Updated User"
+        }
+        """;
 
         mockMvc.perform(
                         put("/api/v1/users/me")
@@ -57,7 +56,7 @@ class UserControllerIT extends BaseIntegrationTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Updated User"))
-                .andExpect(jsonPath("$.email").value("updated.user@example.test"));
+                .andExpect(jsonPath("$.email").value("user.one@example.test"));
     }
 
     @Test
@@ -76,8 +75,7 @@ class UserControllerIT extends BaseIntegrationTest {
 
         String body = """
         {
-            "name": "",
-            "email": "invalid-email"
+            "name": ""
         }
         """;
 
@@ -91,26 +89,5 @@ class UserControllerIT extends BaseIntegrationTest {
                                 .content(body)
                 )
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void shouldRejectUpdateWithExistingEmail() throws Exception {
-
-        String token = getToken();
-
-        String body = """
-        {
-            "name": "Test User One",
-            "email": "user.two@example.test"
-        }
-        """;
-
-        mockMvc.perform(
-                        put("/api/v1/users/me")
-                                .header("Authorization", "Bearer " + token)
-                                .contentType(APPLICATION_JSON)
-                                .content(body)
-                )
-                .andExpect(status().isConflict());
     }
 }
