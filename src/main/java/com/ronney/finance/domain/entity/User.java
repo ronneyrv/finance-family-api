@@ -28,4 +28,10 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "household_id")
     private Household household;
+
+    @Column(length = 500)
+    private String avatarUrl;
+
+    @Column(length = 255)
+    private String avatarPublicId;
 }

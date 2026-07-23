@@ -5,6 +5,7 @@ import java.util.UUID;
 public record CurrentUserResponse(
         UUID id,
         String name,
-        String email
+        String email,
+        String avatarUrl
 ) {
 }
