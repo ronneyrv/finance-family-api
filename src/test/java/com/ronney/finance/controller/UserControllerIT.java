@@ -1,16 +1,12 @@
 package com.ronney.finance.controller;
 
 import com.ronney.finance.BaseIntegrationTest;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 
-import static org.skyscreamer.jsonassert.JSONAssert.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -89,5 +85,97 @@ class UserControllerIT extends BaseIntegrationTest {
                                 .content(body)
                 )
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldUploadAvatar() throws Exception {
+
+        String token = getToken();
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes()
+        );
+
+        mockMvc.perform(
+                        multipart("/api/v1/users/me/avatar")
+                                .file(file)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl").exists())
+                .andExpect(jsonPath("$.avatarUrl").isNotEmpty());
+    }
+
+    @Test
+    void shouldRejectEmptyAvatar() throws Exception {
+
+        String token = getToken();
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                new byte[0]
+        );
+
+        mockMvc.perform(
+                        multipart("/api/v1/users/me/avatar")
+                                .file(file)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Avatar file must not be empty."));
+    }
+
+    @Test
+    void shouldRejectInvalidAvatarContentType() throws Exception {
+
+        String token = getToken();
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.txt",
+                MediaType.TEXT_PLAIN_VALUE,
+                "hello".getBytes()
+        );
+
+        mockMvc.perform(
+                        multipart("/api/v1/users/me/avatar")
+                                .file(file)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Only JPEG, PNG and WEBP images are allowed."));
+    }
+
+    @Test
+    void shouldRejectAvatarUploadWhenUserIsNotAuthenticated() throws Exception {
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-image".getBytes()
+        );
+
+        mockMvc.perform(
+                        multipart("/api/v1/users/me/avatar")
+                                .file(file)
+                )
+                .andExpect(status().isForbidden());
     }
 }
