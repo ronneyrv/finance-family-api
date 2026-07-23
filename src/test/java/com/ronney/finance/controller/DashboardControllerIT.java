@@ -302,18 +302,18 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
     private void createPurchase(
             String token,
-            UUID cardId
+            UUID cardId,
+            LocalDate purchaseDate
     ) throws Exception {
-        LocalDate purchaseDate = LocalDate.now();
 
-        String body = String.format("""
-        {
-            "description":"Notebook",
-            "totalAmount":1200,
-            "installments":1,
-            "purchaseDate":"%s"
-        }
-        """, purchaseDate);
+        String body = """
+    {
+        "description":"Notebook",
+        "totalAmount":1200,
+        "installments":1,
+        "purchaseDate":"%s"
+    }
+    """.formatted(purchaseDate);
 
         mockMvc.perform(
                         post("/api/v1/credit-cards/{id}/purchases", cardId)
@@ -696,7 +696,14 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         UUID cardId = createCreditCard(token);
 
-        createPurchase(token, cardId);
+        LocalDate purchaseDate = LocalDate.now()
+                .withDayOfMonth(10);
+
+        createPurchase(
+                token,
+                cardId,
+                purchaseDate
+        );
 
         mockMvc.perform(
                         get("/api/v1/dashboard/credit-cards")
@@ -722,7 +729,11 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         UUID cardId = createCreditCard(token);
 
-        createPurchase(token, cardId);
+        createPurchase(
+                token,
+                cardId,
+                LocalDate.now().withDayOfMonth(10)
+        );
 
         String response = mockMvc.perform(
                         get("/api/v1/dashboard/credit-cards/trend")
