@@ -8,31 +8,44 @@ GIT_SHA="$2"
 APP_NAME="finance-api"
 DB_NAME="finance-postgres"
 
-COMPOSE_FILE="docker-compose.prod.yml"
-
-compose() {
-    docker compose \
-        -f "$COMPOSE_FILE" \
-        "$@"
-}
+APP_DIR="/opt/finance-api/app"
+COMPOSE_DIR="/opt/finance-api/compose"
+COMPOSE_FILE="$COMPOSE_DIR/docker-compose.yml"
 
 HEALTH_URL="http://127.0.0.1:8080/actuator/health"
 
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=5
 
-CURRENT_VERSION_FILE=".current-version"
+CURRENT_VERSION_FILE="$APP_DIR/.current-version"
+
+compose() {
+    (
+        cd "$COMPOSE_DIR"
+        IMAGE_TAG="$IMAGE_TAG" docker compose "$@"
+    )
+}
 
 echo "==> Preparing production configuration"
+
+cd "$APP_DIR"
 
 git fetch origin main
 git checkout --detach "$GIT_SHA"
 
+echo "==> Updating production Compose configuration"
+
+install -m 644 \
+    "$APP_DIR/docker-compose.prod.yml" \
+    "$COMPOSE_FILE"
+
 echo "==> Validating production Compose configuration"
+
 compose config >/dev/null
 
 echo "==> Pulling target image"
-IMAGE_TAG="$IMAGE_TAG" compose pull
+
+compose pull
 
 CURRENT_VERSION="unknown"
 
@@ -46,7 +59,7 @@ echo "==> Target version: $IMAGE_TAG"
 
 echo "==> Deploying target version"
 
-IMAGE_TAG="$IMAGE_TAG" compose up -d --force-recreate
+compose up -d --force-recreate
 
 echo "==> Waiting for application health check"
 
@@ -109,7 +122,14 @@ if [[ "$CURRENT_VERSION" == "unknown" ]]; then
     exit 1
 fi
 
+echo "==> Restoring production Compose configuration"
+
+install -m 644 \
+    "$APP_DIR/docker-compose.prod.yml" \
+    "$COMPOSE_FILE"
+
 echo "==> Validating restored Compose configuration"
+
 compose config >/dev/null
 
 echo "==> Recreating previous production version"
