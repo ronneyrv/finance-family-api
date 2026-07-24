@@ -73,6 +73,24 @@ public class UserController {
         return userService.updateCurrentUser(request);
     }
 
+    @Operation(
+            summary = "Upload user avatar",
+            description = "Uploads or replaces the authenticated user's avatar."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Avatar uploaded successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid image"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
     @PostMapping(
             value = "/me/avatar",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
