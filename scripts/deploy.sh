@@ -2,132 +2,152 @@
 
 set -euo pipefail
 
-APP_DIR="/opt/finance-api/app"
-COMPOSE_DIR="/opt/finance-api/compose"
-SOURCE_COMPOSE="$APP_DIR/docker-compose.prod.yml"
-RUNTIME_COMPOSE="$COMPOSE_DIR/docker-compose.yml"
-BACKUP_COMPOSE="$COMPOSE_DIR/docker-compose.yml.bak"
+IMAGE_TAG="$1"
+GIT_SHA="$2"
+
+APP_NAME="finance-api"
+DB_NAME="finance-postgres"
 
 HEALTH_URL="http://127.0.0.1:8080/actuator/health"
+
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=5
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <image-tag> <git-sha>"
-  echo "Example: $0 sha-e2c0592 e2c0592"
-  exit 1
-fi
-
-NEW_TAG="$1"
-GIT_SHA="$2"
+CURRENT_VERSION_FILE=".current-version"
+PREVIOUS_COMPOSE_FILE="docker-compose.previous.yml"
 
 echo "==> Preparing production configuration"
 
-cd "$APP_DIR"
-
 git fetch origin main
-
-if ! git cat-file -e "${GIT_SHA}^{commit}"; then
-  echo "==> Git commit not found: $GIT_SHA"
-  exit 1
-fi
-
 git checkout --detach "$GIT_SHA"
 
 echo "==> Validating production Compose configuration"
+docker compose config >/dev/null
 
-IMAGE_TAG="$NEW_TAG" docker compose \
-  -f "$SOURCE_COMPOSE" \
-  --env-file "$COMPOSE_DIR/.env" \
-  config --quiet
-
-  echo "==> Pulling target image"
-
-  IMAGE_TAG="$NEW_TAG" docker compose \
-    -f "$SOURCE_COMPOSE" \
-    --env-file "$COMPOSE_DIR/.env" \
-    pull
+echo "==> Pulling target image"
+IMAGE_TAG="$IMAGE_TAG" docker compose pull
 
 echo "==> Backing up current runtime Compose configuration"
-
-cp "$RUNTIME_COMPOSE" "$BACKUP_COMPOSE"
+cp docker-compose.yml "$PREVIOUS_COMPOSE_FILE"
 
 echo "==> Synchronizing production Compose configuration"
+cp docker-compose.prod.yml docker-compose.yml
 
-cp "$SOURCE_COMPOSE" "$RUNTIME_COMPOSE"
+CURRENT_VERSION="unknown"
 
-cd "$COMPOSE_DIR"
-
-CURRENT_IMAGE=$(docker inspect finance-api \
-  --format '{{.Config.Image}}' 2>/dev/null || true)
-
-CURRENT_TAG="${CURRENT_IMAGE##*:}"
+if [[ -f "$CURRENT_VERSION_FILE" ]]; then
+    CURRENT_VERSION="$(cat "$CURRENT_VERSION_FILE")"
+fi
 
 echo "==> Starting versioned production deployment"
-echo "==> Current version: ${CURRENT_TAG:-unknown}"
-echo "==> Target version: $NEW_TAG"
+echo "==> Current version: $CURRENT_VERSION"
+echo "==> Target version: $IMAGE_TAG"
 
 echo "==> Deploying target version"
 
-IMAGE_TAG="$NEW_TAG" docker compose \
-  --env-file "$COMPOSE_DIR/.env" \
-  up -d --force-recreate
+IMAGE_TAG="$IMAGE_TAG" docker compose up -d --force-recreate
 
 echo "==> Waiting for application health check"
 
-for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-  if curl --fail --silent "$HEALTH_URL" | grep -q '"status":"UP"'; then
-    echo "==> Application is healthy"
-    IMAGE_TAG="$NEW_TAG" docker compose ps
-    echo "==> Deployment completed successfully: $NEW_TAG"
-    exit 0
-  fi
+for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
 
-  echo "==> Health check attempt $attempt/$MAX_ATTEMPTS failed. Retrying in ${SLEEP_SECONDS}s..."
-  sleep "$SLEEP_SECONDS"
+    RESPONSE=$(curl \
+        --silent \
+        --show-error \
+        --write-out "\nHTTP_STATUS:%{http_code}" \
+        "$HEALTH_URL" || true)
+
+    echo
+    echo "========== Health Check Attempt ${attempt}/${MAX_ATTEMPTS} =========="
+    echo "$RESPONSE"
+
+    if echo "$RESPONSE" | grep -q '"status":"UP"' &&
+       echo "$RESPONSE" | grep -q 'HTTP_STATUS:200'; then
+
+        echo "$IMAGE_TAG" > "$CURRENT_VERSION_FILE"
+
+        echo "==> Deployment completed successfully: $IMAGE_TAG"
+
+        exit 0
+    fi
+
+    if [[ $attempt -lt $MAX_ATTEMPTS ]]; then
+        echo "==> Health check failed. Retrying in ${SLEEP_SECONDS}s..."
+        sleep "$SLEEP_SECONDS"
+    fi
 done
 
-echo "==> Deployment failed for version: $NEW_TAG"
+echo
+echo "======================================================"
+echo "DEPLOY FAILED"
+echo "======================================================"
 
-if [ -z "$CURRENT_TAG" ]; then
-  echo "==> Rollback unavailable: previous version could not be determined"
-  IMAGE_TAG="$NEW_TAG" docker compose logs --tail=50 finance-api
-  exit 1
-fi
+echo
+echo "========== Docker PS =========="
+docker ps || true
 
-echo "==> Rolling back to previous version: $CURRENT_TAG"
+echo
+echo "========== Finance API Logs =========="
+docker logs "$APP_NAME" --tail=200 || true
 
-echo "==> Restoring previous Compose configuration"
+echo
+echo "========== PostgreSQL Logs =========="
+docker logs "$DB_NAME" --tail=100 || true
 
-cp "$BACKUP_COMPOSE" "$RUNTIME_COMPOSE"
+echo
+echo "========== Finance API Inspect =========="
+docker inspect "$APP_NAME" || true
+
+echo
+echo "========== Rolling back to previous version =========="
+
+cp "$PREVIOUS_COMPOSE_FILE" docker-compose.yml
 
 echo "==> Validating restored Compose configuration"
-
-IMAGE_TAG="$CURRENT_TAG" docker compose \
-  -f "$RUNTIME_COMPOSE" \
-  --env-file "$COMPOSE_DIR/.env" \
-  config --quiet
+docker compose config >/dev/null
 
 echo "==> Recreating previous production version"
 
-IMAGE_TAG="$CURRENT_TAG" docker compose \
-  --env-file "$COMPOSE_DIR/.env" \
-  up -d --force-recreate
+IMAGE_TAG="$CURRENT_VERSION" docker compose up -d --force-recreate
 
 echo "==> Waiting for rollback health check"
 
-for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-  if curl --fail --silent "$HEALTH_URL" | grep -q '"status":"UP"'; then
-    echo "==> Rollback completed successfully: $CURRENT_TAG"
-    IMAGE_TAG="$CURRENT_TAG" docker compose ps
-    exit 1
-  fi
+for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
 
-  echo "==> Rollback health check attempt $attempt/$MAX_ATTEMPTS failed. Retrying in ${SLEEP_SECONDS}s..."
-  sleep "$SLEEP_SECONDS"
+    RESPONSE=$(curl \
+        --silent \
+        --show-error \
+        --write-out "\nHTTP_STATUS:%{http_code}" \
+        "$HEALTH_URL" || true)
+
+    echo
+    echo "========== Rollback Health Check ${attempt}/${MAX_ATTEMPTS} =========="
+    echo "$RESPONSE"
+
+    if echo "$RESPONSE" | grep -q '"status":"UP"' &&
+       echo "$RESPONSE" | grep -q 'HTTP_STATUS:200'; then
+
+        echo "==> Rollback completed successfully: $CURRENT_VERSION"
+
+        docker ps
+
+        exit 1
+    fi
+
+    if [[ $attempt -lt $MAX_ATTEMPTS ]]; then
+        echo "==> Rollback health check failed. Retrying in ${SLEEP_SECONDS}s..."
+        sleep "$SLEEP_SECONDS"
+    fi
 done
 
-echo "==> Critical failure: rollback version is also unhealthy"
-IMAGE_TAG="$CURRENT_TAG" docker compose logs --tail=50 finance-api
+echo
+echo "========== Rollback Finance API Logs =========="
+docker logs "$APP_NAME" --tail=200 || true
 
-exit 2
+echo
+echo "========== Rollback PostgreSQL Logs =========="
+docker logs "$DB_NAME" --tail=100 || true
+
+echo "Rollback failed."
+
+exit 1
