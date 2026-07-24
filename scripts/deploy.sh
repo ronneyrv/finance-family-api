@@ -8,13 +8,20 @@ GIT_SHA="$2"
 APP_NAME="finance-api"
 DB_NAME="finance-postgres"
 
+COMPOSE_FILE="docker-compose.prod.yml"
+
+compose() {
+    docker compose \
+        -f "$COMPOSE_FILE" \
+        "$@"
+}
+
 HEALTH_URL="http://127.0.0.1:8080/actuator/health"
 
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=5
 
 CURRENT_VERSION_FILE=".current-version"
-PREVIOUS_COMPOSE_FILE="docker-compose.previous.yml"
 
 echo "==> Preparing production configuration"
 
@@ -22,16 +29,10 @@ git fetch origin main
 git checkout --detach "$GIT_SHA"
 
 echo "==> Validating production Compose configuration"
-docker compose config >/dev/null
+compose config >/dev/null
 
 echo "==> Pulling target image"
-IMAGE_TAG="$IMAGE_TAG" docker compose pull
-
-echo "==> Backing up current runtime Compose configuration"
-cp docker-compose.yml "$PREVIOUS_COMPOSE_FILE"
-
-echo "==> Synchronizing production Compose configuration"
-cp docker-compose.prod.yml docker-compose.yml
+IMAGE_TAG="$IMAGE_TAG" compose pull
 
 CURRENT_VERSION="unknown"
 
@@ -45,7 +46,7 @@ echo "==> Target version: $IMAGE_TAG"
 
 echo "==> Deploying target version"
 
-IMAGE_TAG="$IMAGE_TAG" docker compose up -d --force-recreate
+IMAGE_TAG="$IMAGE_TAG" compose up -d --force-recreate
 
 echo "==> Waiting for application health check"
 
@@ -101,14 +102,19 @@ docker inspect "$APP_NAME" || true
 echo
 echo "========== Rolling back to previous version =========="
 
-cp "$PREVIOUS_COMPOSE_FILE" docker-compose.yml
+if [[ "$CURRENT_VERSION" == "unknown" ]]; then
+    echo "==> No previous deployed version found."
+    echo "==> Automatic rollback is unavailable."
+
+    exit 1
+fi
 
 echo "==> Validating restored Compose configuration"
-docker compose config >/dev/null
+compose config >/dev/null
 
 echo "==> Recreating previous production version"
 
-IMAGE_TAG="$CURRENT_VERSION" docker compose up -d --force-recreate
+IMAGE_TAG="$CURRENT_VERSION" compose up -d --force-recreate
 
 echo "==> Waiting for rollback health check"
 
