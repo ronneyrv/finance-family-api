@@ -1,4 +1,27 @@
 services:
+  postgres:
+    image: postgres:16
+
+    container_name: finance-postgres
+
+    restart: unless-stopped
+
+    stop_grace_period: 30s
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   finance-api:
     image: ghcr.io/ronneyrv/finance-family-api:${IMAGE_TAG:-latest}
 
@@ -16,3 +39,6 @@ services:
 
     ports:
       - "127.0.0.1:8080:8080"
+
+volumes:
+  postgres-data:
