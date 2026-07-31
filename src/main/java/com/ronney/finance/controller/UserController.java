@@ -1,5 +1,6 @@
 package com.ronney.finance.controller;
 
+import com.ronney.finance.dto.request.ChangePasswordRequest;
 import com.ronney.finance.dto.request.UpdateCurrentUserRequest;
 import com.ronney.finance.dto.response.CurrentUserResponse;
 import com.ronney.finance.service.UserService;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
@@ -71,6 +73,34 @@ public class UserController {
     ) {
 
         return userService.updateCurrentUser(request);
+    }
+
+    @Operation(
+            summary = "Change current user password",
+            description = "Updates the authenticated user's password."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Password updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @PutMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(
+            @Valid
+            @RequestBody
+            ChangePasswordRequest request
+    ) {
+        userService.changePassword(request);
     }
 
     @Operation(

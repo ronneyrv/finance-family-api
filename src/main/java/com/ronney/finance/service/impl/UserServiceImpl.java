@@ -1,8 +1,10 @@
 package com.ronney.finance.service.impl;
 
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.dto.request.ChangePasswordRequest;
 import com.ronney.finance.dto.request.UpdateCurrentUserRequest;
 import com.ronney.finance.dto.response.CurrentUserResponse;
+import com.ronney.finance.exception.BusinessException;
 import com.ronney.finance.repository.UserRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.StorageService;
@@ -10,6 +12,8 @@ import com.ronney.finance.service.UserService;
 import com.ronney.finance.service.dto.StorageResult;
 import com.ronney.finance.service.validation.AvatarValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +25,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final StorageService storageService;
     private final AvatarValidator avatarValidator;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public CurrentUserResponse getCurrentUser() {
@@ -42,6 +47,47 @@ public class UserServiceImpl implements UserService {
         user = userRepository.save(user);
 
         return toResponse(user);
+    }
+
+    @Override
+    public void changePassword(
+            ChangePasswordRequest request
+    ) {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        if (!passwordEncoder.matches(
+                request.currentPassword(),
+                user.getPassword()
+        )) {
+            throw new BusinessException(
+                    "Current password is incorrect.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new BusinessException(
+                    "Passwords do not match.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        if (passwordEncoder.matches(
+                request.newPassword(),
+                user.getPassword()
+        )) {
+            throw new BusinessException(
+                    "New password must be different from the current password.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(request.newPassword())
+        );
+
+        userRepository.save(user);
     }
 
     @Override
