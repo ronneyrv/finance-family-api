@@ -4,7 +4,9 @@ import com.ronney.finance.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -175,6 +177,128 @@ class UserControllerIT extends BaseIntegrationTest {
         mockMvc.perform(
                         multipart("/api/v1/users/me/avatar")
                                 .file(file)
+                )
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldChangePassword() throws Exception {
+
+        String token = getToken();
+
+        String body = """
+    {
+        "currentPassword": "test-password",
+        "newPassword": "new-password",
+        "confirmPassword": "new-password"
+    }
+    """;
+
+        MvcResult result = mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andReturn();
+
+        System.out.println("STATUS = " + result.getResponse().getStatus());
+        System.out.println("BODY = " + result.getResponse().getContentAsString());
+
+        if (result.getResolvedException() != null) {
+            result.getResolvedException().printStackTrace();
+        }
+
+        assertEquals(204, result.getResponse().getStatus());
+    }
+
+    @Test
+    void shouldRejectWhenCurrentPasswordIsIncorrect() throws Exception {
+
+        String token = getToken();
+
+        String body = """
+    {
+        "currentPassword": "wrong-password",
+        "newPassword": "new-password",
+        "confirmPassword": "new-password"
+    }
+    """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Current password is incorrect."));
+    }
+
+    @Test
+    void shouldRejectWhenPasswordsDoNotMatch() throws Exception {
+
+        String token = getToken();
+
+        String body = """
+    {
+        "currentPassword": "test-password",
+        "newPassword": "new-password",
+        "confirmPassword": "another-password"
+    }
+    """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Passwords do not match."));
+    }
+
+    @Test
+    void shouldRejectWhenNewPasswordIsTheSameAsCurrentPassword() throws Exception {
+
+        String token = getToken();
+
+        String body = """
+    {
+        "currentPassword": "test-password",
+        "newPassword": "test-password",
+        "confirmPassword": "test-password"
+    }
+    """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("New password must be different from the current password."));
+    }
+
+    @Test
+    void shouldRejectPasswordChangeWhenUserIsNotAuthenticated() throws Exception {
+
+        String body = """
+    {
+        "currentPassword": "test-password",
+        "newPassword": "new-password",
+        "confirmPassword": "new-password"
+    }
+    """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
                 )
                 .andExpect(status().isForbidden());
     }
