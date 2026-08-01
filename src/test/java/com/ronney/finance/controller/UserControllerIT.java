@@ -302,4 +302,31 @@ class UserControllerIT extends BaseIntegrationTest {
                 )
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void shouldReturnBadRequestWhenPasswordRequestHasMalformedJson() throws Exception {
+
+        String token = getToken();
+
+        String body = """
+    {
+        "currentPassword": "test-password",
+        "newPassword": "new-password"
+        "confirmPassword": "new-password"
+    }
+    """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/password")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Malformed JSON request."));
+    }
 }
