@@ -28,7 +28,6 @@ public class OpenApiConfig {
                                         - JWT Authentication
                                         - Financial Transactions
                                         - Dashboard
-                                        - Financial Goals
                                         - Credit Cards
                                         - Installment Purchases
                                         - Monthly Invoices
