@@ -46,7 +46,7 @@ O projeto também possui uma infraestrutura de produção com imagens Docker imu
 ### Banco de Dados
 
 - PostgreSQL 17
-- H2 para testes automatizados
+- PostgreSQL Testcontainers para testes automatizados
 - Flyway
 
 ### Documentação
@@ -115,7 +115,6 @@ O domínio principal da aplicação é composto pelas seguintes entidades:
 - `Purchase`
 - `CreditCardInstallment`
 - `RecurringTransaction`
-- `Goal`
 
 As transações financeiras pertencem a usuários e são vinculadas a contas financeiras.
 
@@ -215,7 +214,7 @@ A aplicação utiliza profiles do Spring Boot para separar as configurações e 
 | Profile | Ambiente | Banco de dados | Inicialização de dados |
 |---|---|---|---|
 | `dev` | desenvolvimento local | PostgreSQL | dados fictícios de desenvolvimento |
-| `test` | testes automatizados | H2 em memória | fixtures próprias e isoladas |
+| `test` | testes automatizados | PostgreSQL Testcontainers | fixtures próprias e isoladas |
 | `prod` | produção | PostgreSQL | sem inicialização automática de dados de desenvolvimento |
 
 ### Profile `dev`
@@ -243,7 +242,9 @@ Nesse profile:
 
 ### Profile `test`
 
-Os testes automatizados utilizam o profile `test` e um banco H2 em memória.
+Os testes automatizados utilizam o profile `test` e um banco PostgreSQL provisionado automaticamente pelo Testcontainers.
+
+A infraestrutura de testes utiliza o mesmo mecanismo de migrations do ambiente de produção, executando o Flyway antes da inicialização dos testes.
 
 Os dados necessários para os testes são criados por fixtures próprias, independentes dos initializers de desenvolvimento. Essa separação mantém os testes reproduzíveis e evita dependência dos dados utilizados no ambiente local.
 
@@ -445,6 +446,22 @@ Para executar a suíte completa a partir de um estado limpo:
 ./gradlew clean test
 ```
 
+### Docker Engine 29+
+
+Em alguns ambientes com Docker Engine 29+, o Testcontainers pode exigir a criação do arquivo local:
+
+```text
+~/.docker-java.properties
+```
+
+Com o conteúdo:
+
+```properties
+api.version=1.44
+```
+
+> Esse arquivo faz parte apenas da configuração local do ambiente de desenvolvimento e **não deve ser versionado**.
+
 ## Migrations do Banco de Dados
 
 A evolução do schema do banco de dados é gerenciada pelo Flyway.
@@ -471,8 +488,11 @@ As migrations atuais são:
 | `V10` | criação de parcelas de cartão de crédito |
 | `V11` | criação de transações recorrentes |
 | `V12` | adição do tipo de transação e suporte a pagamentos de fatura |
+| `V13` | criação da tabela de refresh tokens |
 
 O Flyway executa automaticamente as migrations pendentes durante a inicialização da aplicação.
+
+A mesma estratégia também é utilizada durante a execução dos testes de integração, garantindo que o schema validado seja equivalente ao ambiente de produção.
 
 O Hibernate utiliza:
 
@@ -727,9 +747,3 @@ Health check:
 ```text
 https://finance-api.ronneyrocha.com.br/actuator/health
 ```
-
-## Status do Projeto
-
-A API backend e sua infraestrutura de produção estão operacionais, com evolução contínua de funcionalidades, testes e integrações.
-
-Atualmente, o projeto possui recursos para autenticação, gerenciamento de contas e transações financeiras, categorização, cartões de crédito, compras parceladas, pagamentos de faturas, transações recorrentes, metas financeiras, dashboards, acesso seguro em produção e recuperação automática após falhas de deploy.
