@@ -1,6 +1,7 @@
 package com.ronney.finance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ronney.finance.config.PostgresTestContainerConfig;
 import com.ronney.finance.config.TestDataInitializer;
 import com.ronney.finance.dto.request.LoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +20,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestDataInitializer.class)
+@Import({
+        TestDataInitializer.class,
+        PostgresTestContainerConfig.class
+})
 @Transactional
 public abstract class BaseIntegrationTest {
     @Autowired
