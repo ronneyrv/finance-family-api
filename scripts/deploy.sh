@@ -61,18 +61,48 @@ echo "==> Deploying target version"
 
 compose up -d --force-recreate
 
+echo "Waiting for finance-api container..."
+
+until [ "$(docker inspect -f '{{.State.Running}}' "$APP_NAME")" = "true" ]; do
+    sleep 1
+done
+
+echo "Container is running. Waiting a few seconds..."
+
+sleep 5
+
 echo "==> Waiting for application health check"
 
 for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+    echo
+    echo "===== $(date) ====="
+
+    echo "===== Container status ====="
+    docker ps -a --filter "name=$APP_NAME"
+
+    docker inspect -f 'RestartCount={{.RestartCount}}' "$APP_NAME"
+
+    echo "===== Port mapping ====="
+    docker port "$APP_NAME" || true
+
+    echo "===== Container state ====="
+    docker inspect -f \
+    'Running={{.State.Running}} Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} StartedAt={{.State.StartedAt}}' \
+    "$APP_NAME"
+
+    set +e
 
     RESPONSE=$(curl \
         --silent \
         --show-error \
         --write-out "\nHTTP_STATUS:%{http_code}" \
-        "$HEALTH_URL" || true)
+        "$HEALTH_URL")
 
-    echo
-    echo "========== Health Check Attempt ${attempt}/${MAX_ATTEMPTS} =========="
+    CURL_EXIT=$?
+
+    set -e
+
+    echo "Curl exit code: $CURL_EXIT"
     echo "$RESPONSE"
 
     if echo "$RESPONSE" | grep -q '"status":"UP"' &&
