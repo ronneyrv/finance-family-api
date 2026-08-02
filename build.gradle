@@ -42,6 +42,11 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+
     testRuntimeOnly 'com.h2database:h2'
 
     implementation 'com.cloudinary:cloudinary-http44:1.39.0'
