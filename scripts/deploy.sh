@@ -26,6 +26,66 @@ compose() {
     )
 }
 
+wait_for_postgres() {
+
+    echo
+    echo "==> Waiting for PostgreSQL health check"
+
+    for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+
+        STATUS=$(
+            docker inspect \
+                -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' \
+                "$DB_NAME" \
+                2>/dev/null || echo "not-found"
+        )
+
+        echo "PostgreSQL [$attempt/$MAX_ATTEMPTS]: $STATUS"
+
+        if [[ "$STATUS" == "healthy" ]]; then
+            echo "==> PostgreSQL is healthy"
+            return 0
+        fi
+
+        sleep "$SLEEP_SECONDS"
+    done
+
+    echo "==> PostgreSQL did not become healthy."
+
+    echo
+    echo "========== PostgreSQL =========="
+
+    docker ps -a
+
+    docker logs "$DB_NAME" --tail=100 || true
+
+    return 1
+}
+
+health_check() {
+
+    set +e
+
+    RESPONSE=$(
+        curl \
+            --silent \
+            --show-error \
+            --write-out "\nHTTP_STATUS:%{http_code}" \
+            "$HEALTH_URL"
+    )
+
+    CURL_EXIT=$?
+
+    set -e
+
+    echo "Curl exit code: $CURL_EXIT"
+    echo "$RESPONSE"
+
+    [[ $CURL_EXIT -eq 0 ]] &&
+    echo "$RESPONSE" | grep -q '"status":"UP"' &&
+    echo "$RESPONSE" | grep -q 'HTTP_STATUS:200'
+}
+
 echo "==> Preparing production configuration"
 
 cd "$APP_DIR"
@@ -45,7 +105,7 @@ compose config >/dev/null
 
 echo "==> Pulling target image"
 
-compose pull
+compose pull finance-api
 
 CURRENT_VERSION="unknown"
 
@@ -53,70 +113,67 @@ if [[ -f "$CURRENT_VERSION_FILE" ]]; then
     CURRENT_VERSION="$(cat "$CURRENT_VERSION_FILE")"
 fi
 
-echo "==> Starting versioned production deployment"
-echo "==> Current version: $CURRENT_VERSION"
-echo "==> Target version: $IMAGE_TAG"
+echo
+echo "======================================================"
+echo "Deploy"
+echo "======================================================"
 
-echo "==> Deploying target version"
+echo "Current version : $CURRENT_VERSION"
+echo "Target version  : $IMAGE_TAG"
 
-compose up -d --force-recreate
+echo
+echo "==> Starting PostgreSQL"
+
+compose up -d postgres
+
+wait_for_postgres
+
+echo
+echo "==> Starting Finance API"
+
+compose up -d --force-recreate finance-api
 
 echo "Waiting for finance-api container..."
 
-until [ "$(docker inspect -f '{{.State.Running}}' "$APP_NAME")" = "true" ]; do
+until docker inspect "$APP_NAME" >/dev/null 2>&1
+do
     sleep 1
 done
 
-echo "Container is running. Waiting a few seconds..."
+until [ "$(docker inspect -f '{{.State.Running}}' "$APP_NAME")" = "true" ]
+do
+    sleep 1
+done
 
-sleep 5
-
-echo "==> Waiting for application health check"
+echo
+echo "==> Waiting for Finance API"
 
 for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+
     echo
-    echo "===== $(date) ====="
+    echo "======================================================"
+    echo "Attempt ${attempt}/${MAX_ATTEMPTS}"
+    echo "======================================================"
 
-    echo "===== Container status ====="
-    docker ps -a --filter "name=$APP_NAME"
-
-    docker inspect -f 'RestartCount={{.RestartCount}}' "$APP_NAME"
-
-    echo "===== Port mapping ====="
-    docker port "$APP_NAME" || true
-
-    echo "===== Container state ====="
     docker inspect -f \
-    'Running={{.State.Running}} Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} StartedAt={{.State.StartedAt}}' \
-    "$APP_NAME"
+        'Running={{.State.Running}} RestartCount={{.RestartCount}} StartedAt={{.State.StartedAt}}' \
+        "$APP_NAME"
 
-    set +e
-
-    RESPONSE=$(curl \
-        --silent \
-        --show-error \
-        --write-out "\nHTTP_STATUS:%{http_code}" \
-        "$HEALTH_URL")
-
-    CURL_EXIT=$?
-
-    set -e
-
-    echo "Curl exit code: $CURL_EXIT"
-    echo "$RESPONSE"
-
-    if echo "$RESPONSE" | grep -q '"status":"UP"' &&
-       echo "$RESPONSE" | grep -q 'HTTP_STATUS:200'; then
+    if health_check; then
 
         echo "$IMAGE_TAG" > "$CURRENT_VERSION_FILE"
 
-        echo "==> Deployment completed successfully: $IMAGE_TAG"
+        echo
+        echo "======================================================"
+        echo "DEPLOY SUCCESS"
+        echo "======================================================"
 
         exit 0
     fi
 
     if [[ $attempt -lt $MAX_ATTEMPTS ]]; then
-        echo "==> Health check failed. Retrying in ${SLEEP_SECONDS}s..."
+        echo
+        echo "Retrying in ${SLEEP_SECONDS}s..."
         sleep "$SLEEP_SECONDS"
     fi
 done
@@ -126,84 +183,61 @@ echo "======================================================"
 echo "DEPLOY FAILED"
 echo "======================================================"
 
-echo
-echo "========== Docker PS =========="
-docker ps || true
+docker ps
 
 echo
-echo "========== Finance API Logs =========="
+echo "========== Finance API =========="
 docker logs "$APP_NAME" --tail=200 || true
 
 echo
-echo "========== PostgreSQL Logs =========="
+echo "========== PostgreSQL =========="
 docker logs "$DB_NAME" --tail=100 || true
 
 echo
-echo "========== Finance API Inspect =========="
-docker inspect "$APP_NAME" || true
-
-echo
-echo "========== Rolling back to previous version =========="
+echo "========== Rolling back =========="
 
 if [[ "$CURRENT_VERSION" == "unknown" ]]; then
-    echo "==> No previous deployed version found."
-    echo "==> Automatic rollback is unavailable."
+    echo "No previous version available."
 
     exit 1
 fi
 
-echo "==> Restoring production Compose configuration"
+IMAGE_TAG="$CURRENT_VERSION"
 
-install -m 644 \
-    "$APP_DIR/docker-compose.prod.yml" \
-    "$COMPOSE_FILE"
+compose pull finance-api
 
-echo "==> Validating restored Compose configuration"
+echo
+echo "==> Starting PostgreSQL"
 
-compose config >/dev/null
+compose up -d postgres
 
-echo "==> Recreating previous production version"
+wait_for_postgres
 
-IMAGE_TAG="$CURRENT_VERSION" compose up -d --force-recreate
+echo
+echo "==> Restoring previous Finance API"
 
-echo "==> Waiting for rollback health check"
+compose up -d --force-recreate finance-api
+
+echo
+echo "==> Waiting rollback health"
 
 for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
 
-    RESPONSE=$(curl \
-        --silent \
-        --show-error \
-        --write-out "\nHTTP_STATUS:%{http_code}" \
-        "$HEALTH_URL" || true)
+    if health_check; then
 
-    echo
-    echo "========== Rollback Health Check ${attempt}/${MAX_ATTEMPTS} =========="
-    echo "$RESPONSE"
-
-    if echo "$RESPONSE" | grep -q '"status":"UP"' &&
-       echo "$RESPONSE" | grep -q 'HTTP_STATUS:200'; then
-
-        echo "==> Rollback completed successfully: $CURRENT_VERSION"
-
-        docker ps
+        echo
+        echo "Rollback completed successfully."
 
         exit 1
     fi
 
-    if [[ $attempt -lt $MAX_ATTEMPTS ]]; then
-        echo "==> Rollback health check failed. Retrying in ${SLEEP_SECONDS}s..."
-        sleep "$SLEEP_SECONDS"
-    fi
+    sleep "$SLEEP_SECONDS"
+
 done
 
 echo
-echo "========== Rollback Finance API Logs =========="
-docker logs "$APP_NAME" --tail=200 || true
-
-echo
-echo "========== Rollback PostgreSQL Logs =========="
-docker logs "$DB_NAME" --tail=100 || true
-
 echo "Rollback failed."
+
+docker logs "$APP_NAME" --tail=200 || true
 
 exit 1
