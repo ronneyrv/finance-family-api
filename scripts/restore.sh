@@ -60,6 +60,11 @@ cleanup() {
         compose start finance-api
 
         wait_for_api
+
+        echo
+        echo "======================================================"
+        echo "RESTORE COMPLETED SUCCESSFULLY"
+        echo "======================================================"
     else
         echo "==> Restore failed. Finance API remains stopped."
     fi
@@ -163,8 +168,3 @@ docker exec \
     -c '\dt'
 
 RESTORE_SUCCESS=true
-
-echo
-echo "======================================================"
-echo "RESTORE COMPLETED SUCCESSFULLY"
-echo "======================================================"
