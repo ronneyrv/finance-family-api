@@ -16,6 +16,40 @@ compose() {
     )
 }
 
+wait_for_api() {
+
+    local retries=60
+
+    local delay=2
+
+    echo
+    echo "==> Waiting for Finance API"
+
+    while (( retries > 0 )); do
+
+        if curl \
+            --silent \
+            --show-error \
+            --fail \
+            http://127.0.0.1:8080/actuator/health \
+            | grep -q '"status":"UP"'; then
+
+            echo "==> Finance API is healthy"
+
+            return 0
+        fi
+
+        sleep "$delay"
+
+        ((retries--))
+
+    done
+
+    echo "==> Timeout waiting for Finance API health."
+
+    return 1
+}
+
 cleanup() {
 
     echo
@@ -23,7 +57,9 @@ cleanup() {
     if [[ "$RESTORE_SUCCESS" == "true" ]]; then
         echo "==> Starting Finance API"
 
-        compose start finance-api || true
+        compose start finance-api
+
+        wait_for_api
     else
         echo "==> Restore failed. Finance API remains stopped."
     fi
