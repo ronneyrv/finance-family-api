@@ -773,4 +773,70 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         assertThat(hasInvoice).isTrue();
     }
+
+    @Test
+    void shouldReturnHouseholdCashFlow() throws Exception {
+
+        String token = getToken();
+
+        createTransaction(
+                token,
+                5000,
+                "INCOME",
+                "BANK_TRANSFER"
+        );
+
+        createTransaction(
+                token,
+                1200,
+                "EXPENSE",
+                "PIX"
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/cash-flow")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(12))
+                .andExpect(jsonPath("$[6].month").value("JULY"))
+                .andExpect(jsonPath("$[6].income").value(5000))
+                .andExpect(jsonPath("$[6].expense").value(1200));
+    }
+
+    @Test
+    void shouldReturnAllMonthsWhenThereAreMissingMonths() throws Exception {
+
+        String token = getToken();
+
+        createTransaction(
+                token,
+                100,
+                "EXPENSE",
+                "PIX"
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/cash-flow")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(12))
+                .andExpect(jsonPath("$[0].month").value("JANUARY"))
+                .andExpect(jsonPath("$[0].income").value(0))
+                .andExpect(jsonPath("$[0].expense").value(0))
+                .andExpect(jsonPath("$[6].month").value("JULY"))
+                .andExpect(jsonPath("$[6].expense").value(100))
+                .andExpect(jsonPath("$[11].month").value("DECEMBER"))
+                .andExpect(jsonPath("$[11].income").value(0))
+                .andExpect(jsonPath("$[11].expense").value(0));
+    }
 }

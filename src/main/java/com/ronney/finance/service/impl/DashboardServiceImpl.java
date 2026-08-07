@@ -12,6 +12,7 @@ import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
+import com.ronney.finance.repository.projection.MonthlySummaryProjection;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -66,6 +68,55 @@ public class DashboardServiceImpl implements DashboardService {
                 || !occurrenceDate.isAfter(
                 recurringTransaction.getEndDate()
         );
+    }
+
+    private CashFlowResponse toCashFlowResponse(
+            MonthlySummaryProjection projection
+    ) {
+
+        return new CashFlowResponse(
+                Month.of(projection.getMonth()),
+                projection.getIncome(),
+                projection.getExpense()
+        );
+    }
+
+    private List<CashFlowResponse> completeMonthlySeries(
+            Map<Month, CashFlowResponse> monthlyCashFlow
+    ) {
+
+        return Stream.of(Month.values())
+                .map(month ->
+                        monthlyCashFlow.getOrDefault(
+                                month,
+                                new CashFlowResponse(
+                                        month,
+                                        BigDecimal.ZERO,
+                                        BigDecimal.ZERO
+                                )
+                        )
+                )
+                .toList();
+    }
+
+    private Map<Month, CashFlowResponse> getMonthlyCashFlow(
+            UUID householdId,
+            Integer year
+    ) {
+
+        return transactionRepository
+                .findHouseholdMonthlySummary(
+                        householdId,
+                        year
+                )
+                .stream()
+                .map(this::toCashFlowResponse)
+                .collect(
+                        Collectors.toMap(
+                                CashFlowResponse::month,
+                                Function.identity()
+                        )
+                );
     }
 
     @Override
@@ -470,5 +521,19 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CashFlowResponse> getCashFlow(Integer year) {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        return completeMonthlySeries(
+                getMonthlyCashFlow(
+                        user.getHousehold().getId(),
+                        year
+                )
+        );
     }
 }

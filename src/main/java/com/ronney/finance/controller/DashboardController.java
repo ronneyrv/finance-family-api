@@ -202,4 +202,41 @@ public class DashboardController {
                 dashboardService.getCreditCardTrend(year)
         );
     }
+
+    @Operation(
+            summary = "Get household cash flow",
+            description = """
+            Returns the monthly cash flow for the authenticated user's household.
+
+            Includes:
+            - Monthly income
+            - Monthly expenses
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Cash flow retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/cash-flow")
+    public ResponseEntity<List<CashFlowResponse>> getCashFlow(
+
+            @RequestParam
+            @Parameter(
+                    description = "Year used to generate the cash flow",
+                    example = "2026"
+            )
+            Integer year
+
+    ) {
+
+        return ResponseEntity.ok(
+                dashboardService.getCashFlow(year)
+        );
+    }
 }
