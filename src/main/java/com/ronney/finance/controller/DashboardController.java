@@ -279,4 +279,36 @@ public class DashboardController {
                 dashboardService.getCumulativeResult(year)
         );
     }
+
+    @Operation(
+            summary = "Get household income commitment",
+            description = """
+            Returns the current household income commitment.
+
+            Includes:
+            - Monthly recurring income
+            - Monthly recurring expenses
+            - Unpaid credit card installments
+            - Total monthly commitments
+            - Available monthly income
+            - Commitment percentage
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Income commitment retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/income-commitment")
+    public ResponseEntity<IncomeCommitmentResponse> getIncomeCommitment() {
+
+        return ResponseEntity.ok(
+                dashboardService.getIncomeCommitment()
+        );
+    }
 }

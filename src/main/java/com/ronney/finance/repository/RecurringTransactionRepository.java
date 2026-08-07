@@ -17,10 +17,6 @@ public interface RecurringTransactionRepository
             UUID userId
     );
 
-    List<RecurringTransaction> findByUserIdAndActiveTrueOrderByDayOfMonthAsc(
-            UUID userId
-    );
-
     Optional<RecurringTransaction> findByIdAndUserId(
             UUID id,
             UUID userId
@@ -40,6 +36,24 @@ public interface RecurringTransactionRepository
         """)
     List<RecurringTransaction> findActiveForPeriod(
             @Param("userId") UUID userId,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+    SELECT r
+    FROM RecurringTransaction r
+    WHERE r.user.household.id = :householdId
+    AND r.active = true
+    AND r.startDate <= :periodEnd
+    AND (
+        r.endDate IS NULL
+        OR r.endDate >= :periodStart
+    )
+    ORDER BY r.dayOfMonth ASC
+    """)
+    List<RecurringTransaction> findActiveForHouseholdPeriod(
+            @Param("householdId") UUID householdId,
             @Param("periodStart") LocalDate periodStart,
             @Param("periodEnd") LocalDate periodEnd
     );

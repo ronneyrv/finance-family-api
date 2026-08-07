@@ -4,6 +4,7 @@ import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.CommitmentLevel;
 import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
@@ -39,11 +41,17 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 public class DashboardServiceImpl implements DashboardService {
+    private static final BigDecimal LOW_COMMITMENT_LIMIT =
+            BigDecimal.valueOf(30);
+
+    private static final BigDecimal MEDIUM_COMMITMENT_LIMIT =
+            BigDecimal.valueOf(60);
+
     private final TransactionRepository transactionRepository;
-    private final CurrentUserService currentUserService;
     private final RecurringTransactionRepository recurringTransactionRepository;
-    private final CreditCardInstallmentRepository installmentRepository;
     private final CreditCardRepository creditCardRepository;
+    private final CreditCardInstallmentRepository installmentRepository;
+    private final CurrentUserService currentUserService;
 
     private boolean occursInMonth(
             RecurringTransaction recurringTransaction,
@@ -68,6 +76,30 @@ public class DashboardServiceImpl implements DashboardService {
                 || !occurrenceDate.isAfter(
                 recurringTransaction.getEndDate()
         );
+    }
+
+    private BigDecimal calculateRecurringAmount(
+            List<RecurringTransaction> recurringTransactions,
+            TransactionType type,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    ) {
+        return recurringTransactions.stream()
+                .filter(recurringTransaction ->
+                        recurringTransaction.getType() == type
+                )
+                .filter(recurringTransaction ->
+                        occursInMonth(
+                                recurringTransaction,
+                                periodStart,
+                                periodEnd
+                        )
+                )
+                .map(RecurringTransaction::getAmount)
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
     }
 
     private CashFlowResponse toCashFlowResponse(
@@ -184,6 +216,81 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return result;
+    }
+
+    private IncomeCommitmentResponse toIncomeCommitmentResponse(
+            BigDecimal monthlyIncome,
+            BigDecimal recurringExpenses,
+            BigDecimal unpaidCreditCardInstallments
+    ) {
+
+        BigDecimal monthlyCommitments =
+                recurringExpenses.add(
+                        unpaidCreditCardInstallments
+                );
+
+        BigDecimal availableIncome =
+                monthlyIncome.subtract(
+                        monthlyCommitments
+                );
+
+        BigDecimal commitmentPercentage =
+                calculateCommitmentPercentage(
+                        monthlyIncome,
+                        monthlyCommitments
+                );
+
+        CommitmentLevel commitmentLevel =
+                calculateCommitmentLevel(
+                        commitmentPercentage
+                );
+
+        return new IncomeCommitmentResponse(
+                monthlyIncome,
+                recurringExpenses,
+                unpaidCreditCardInstallments,
+                monthlyCommitments,
+                availableIncome,
+                commitmentPercentage,
+                commitmentLevel
+        );
+    }
+
+    private BigDecimal calculateCommitmentPercentage(
+            BigDecimal monthlyIncome,
+            BigDecimal monthlyCommitments
+    ) {
+
+        if (monthlyIncome.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return monthlyCommitments
+                .multiply(BigDecimal.valueOf(100))
+                .divide(
+                        monthlyIncome,
+                        2,
+                        RoundingMode.HALF_UP
+                );
+    }
+
+    private CommitmentLevel calculateCommitmentLevel(
+            BigDecimal commitmentPercentage
+    ) {
+
+        if (commitmentPercentage.compareTo(
+                LOW_COMMITMENT_LIMIT
+        ) <= 0) {
+            return CommitmentLevel.LOW;
+        }
+
+        if (commitmentPercentage.compareTo(
+                MEDIUM_COMMITMENT_LIMIT
+        ) <= 0) {
+            return CommitmentLevel.MEDIUM;
+        }
+
+        return CommitmentLevel.HIGH;
     }
 
     @Override
@@ -320,54 +427,32 @@ public class DashboardServiceImpl implements DashboardService {
                     );
 
             List<RecurringTransaction> recurringTransactions =
-                    recurringTransactionRepository.findActiveForPeriod(
-                            user.getId(),
+                    recurringTransactionRepository.findActiveForHouseholdPeriod(
+                            user.getHousehold().getId(),
                             periodStart,
                             periodEnd
                     );
 
             BigDecimal projectedIncome =
-                    recurringTransactions.stream()
-                            .filter(recurringTransaction ->
-                                    recurringTransaction.getType()
-                                            == TransactionType.INCOME
-                            )
-                            .filter(recurringTransaction ->
-                                    occursInMonth(
-                                            recurringTransaction,
-                                            periodStart,
-                                            periodEnd
-                                    )
-                            )
-                            .map(RecurringTransaction::getAmount)
-                            .reduce(
-                                    BigDecimal.ZERO,
-                                    BigDecimal::add
-                            );
+                    calculateRecurringAmount(
+                            recurringTransactions,
+                            TransactionType.INCOME,
+                            periodStart,
+                            periodEnd
+                    );
 
             BigDecimal projectedRecurringExpense =
-                    recurringTransactions.stream()
-                            .filter(recurringTransaction ->
-                                    recurringTransaction.getType()
-                                            == TransactionType.EXPENSE
-                            )
-                            .filter(recurringTransaction ->
-                                    occursInMonth(
-                                            recurringTransaction,
-                                            periodStart,
-                                            periodEnd
-                                    )
-                            )
-                            .map(RecurringTransaction::getAmount)
-                            .reduce(
-                                    BigDecimal.ZERO,
-                                    BigDecimal::add
-                            );
+                    calculateRecurringAmount(
+                            recurringTransactions,
+                            TransactionType.EXPENSE,
+                            periodStart,
+                            periodEnd
+                    );
 
             List<CreditCardInstallment> installments =
                     installmentRepository
-                            .findByPurchaseCreditCardUserIdAndInvoiceMonthAndInvoiceYear(
-                                    user.getId(),
+                            .findByHouseholdInvoice(
+                                    user.getHousehold().getId(),
                                     month,
                                     year
                             );
@@ -622,5 +707,59 @@ public class DashboardServiceImpl implements DashboardService {
                 );
 
         return buildCumulativeResult(monthlySummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public IncomeCommitmentResponse getIncomeCommitment() {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        UUID householdId = user.getHousehold().getId();
+
+        LocalDate referenceDate = LocalDate.now();
+
+        LocalDate periodStart =
+                referenceDate.withDayOfMonth(1);
+
+        LocalDate periodEnd =
+                referenceDate.withDayOfMonth(
+                        referenceDate.lengthOfMonth()
+                );
+
+        List<RecurringTransaction> recurringTransactions =
+                recurringTransactionRepository.findActiveForHouseholdPeriod(
+                        householdId,
+                        periodStart,
+                        periodEnd
+                );
+
+        BigDecimal monthlyIncome =
+                calculateRecurringAmount(
+                        recurringTransactions,
+                        TransactionType.INCOME,
+                        periodStart,
+                        periodEnd
+                );
+
+        BigDecimal recurringExpenses =
+                calculateRecurringAmount(
+                        recurringTransactions,
+                        TransactionType.EXPENSE,
+                        periodStart,
+                        periodEnd
+                );
+
+        BigDecimal unpaidCreditCardInstallments =
+                installmentRepository
+                        .sumUnpaidInstallmentsByHousehold(
+                                householdId
+                        );
+
+        return toIncomeCommitmentResponse(
+                monthlyIncome,
+                recurringExpenses,
+                unpaidCreditCardInstallments
+        );
     }
 }
