@@ -82,20 +82,25 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private List<CashFlowResponse> completeMonthlySeries(
-            Map<Month, CashFlowResponse> monthlyCashFlow
+            Map<Month, MonthlySummaryProjection> monthlySummary
     ) {
 
         return Stream.of(Month.values())
-                .map(month ->
-                        monthlyCashFlow.getOrDefault(
+                .map(month -> {
+
+                    MonthlySummaryProjection projection =
+                            monthlySummary.get(month);
+
+                    if (projection == null) {
+                        return new CashFlowResponse(
                                 month,
-                                new CashFlowResponse(
-                                        month,
-                                        BigDecimal.ZERO,
-                                        BigDecimal.ZERO
-                                )
-                        )
-                )
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO
+                        );
+                    }
+
+                    return toCashFlowResponse(projection);
+                })
                 .toList();
     }
 
@@ -117,6 +122,68 @@ public class DashboardServiceImpl implements DashboardService {
                                 Function.identity()
                         )
                 );
+    }
+
+    private Map<Month, MonthlySummaryProjection> getHouseholdMonthlySummary(
+            UUID householdId,
+            Integer year
+    ) {
+
+        return transactionRepository
+                .findHouseholdMonthlySummary(
+                        householdId,
+                        year
+                )
+                .stream()
+                .collect(
+                        Collectors.toMap(
+                                projection -> Month.of(projection.getMonth()),
+                                Function.identity()
+                        )
+                );
+    }
+
+    private List<CumulativeResultResponse> buildCumulativeResult(
+            Map<Month, MonthlySummaryProjection> monthlySummary
+    ) {
+
+        BigDecimal accumulated = BigDecimal.ZERO;
+
+        List<CumulativeResultResponse> result = new ArrayList<>();
+
+        for (Month month : Month.values()) {
+
+            MonthlySummaryProjection projection =
+                    monthlySummary.get(month);
+
+            BigDecimal income =
+                    projection != null
+                            ? projection.getIncome()
+                            : BigDecimal.ZERO;
+
+            BigDecimal expense =
+                    projection != null
+                            ? projection.getExpense()
+                            : BigDecimal.ZERO;
+
+            BigDecimal monthlyResult =
+                    income.subtract(expense);
+
+            accumulated =
+                    accumulated.add(monthlyResult);
+
+            result.add(
+                    new CumulativeResultResponse(
+                            month,
+                            income,
+                            expense,
+                            monthlyResult,
+                            accumulated
+                    )
+            );
+        }
+
+        return result;
     }
 
     @Override
@@ -525,15 +592,35 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CashFlowResponse> getCashFlow(Integer year) {
+    public List<CashFlowResponse> getCashFlow(
+            Integer year
+    ) {
 
         User user = currentUserService.getAuthenticatedUser();
 
-        return completeMonthlySeries(
-                getMonthlyCashFlow(
+        Map<Month, MonthlySummaryProjection> monthlySummary =
+                getHouseholdMonthlySummary(
                         user.getHousehold().getId(),
                         year
-                )
-        );
+                );
+
+        return completeMonthlySeries(monthlySummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CumulativeResultResponse> getCumulativeResult(
+            Integer year
+    ) {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        Map<Month, MonthlySummaryProjection> monthlySummary =
+                getHouseholdMonthlySummary(
+                        user.getHousehold().getId(),
+                        year
+                );
+
+        return buildCumulativeResult(monthlySummary);
     }
 }
