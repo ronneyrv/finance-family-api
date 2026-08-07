@@ -239,4 +239,44 @@ public class DashboardController {
                 dashboardService.getCashFlow(year)
         );
     }
+
+    @Operation(
+            summary = "Get cumulative financial result",
+            description = """
+            Returns the cumulative financial result
+            for the authenticated user's household.
+
+            Includes:
+            - Monthly income
+            - Monthly expenses
+            - Monthly result
+            - Cumulative result
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Cumulative result retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/cumulative-result")
+    public ResponseEntity<List<CumulativeResultResponse>> getCumulativeResult(
+
+            @RequestParam
+            @Parameter(
+                    description = "Year used to generate the cumulative result",
+                    example = "2026"
+            )
+            Integer year
+
+    ) {
+
+        return ResponseEntity.ok(
+                dashboardService.getCumulativeResult(year)
+        );
+    }
 }
