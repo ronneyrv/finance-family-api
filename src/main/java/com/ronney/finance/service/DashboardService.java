@@ -19,6 +19,10 @@ public interface DashboardService {
             Integer year
     );
 
+    List<CashFlowResponse> getCashFlow(
+            Integer year
+    );
+
     List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries();
 
     List<MonthlyCreditCardTrendResponse> getCreditCardTrend(

@@ -134,4 +134,39 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     Optional<LocalDate> findFirstTransactionDate(
             @Param("userId") UUID userId
     );
+
+    @Query("""
+    SELECT
+        MONTH(t.transactionDate) as month,
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN t.type = 'INCOME'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ),
+            0
+        ) as income,
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN t.type = 'EXPENSE'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ),
+            0
+        ) as expense
+    FROM Transaction t
+    WHERE t.user.household.id = :householdId
+    AND YEAR(t.transactionDate) = :year
+    AND t.transactionKind = 'REGULAR'
+    GROUP BY MONTH(t.transactionDate)
+    ORDER BY MONTH(t.transactionDate)
+    """)
+    List<MonthlySummaryProjection> findHouseholdMonthlySummary(
+            @Param("householdId") UUID householdId,
+            @Param("year") Integer year
+    );
 }
