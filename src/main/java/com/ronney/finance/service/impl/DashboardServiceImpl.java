@@ -386,25 +386,56 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public List<MonthlySummaryResponse> getMonthlySummary(Integer year) {
+    public List<MonthlySummaryResponse> getMonthlySummary(
+            Integer year
+    ) {
         User user = currentUserService.getAuthenticatedUser();
 
-        return transactionRepository.findMonthlySummary(
-                user.getId(),
-                year
-        )
-                .stream()
-                .map(item -> {BigDecimal balance = item.getIncome()
-                        .subtract(item.getExpense()
-                        );
-                return new MonthlySummaryResponse(
-                        Month.of(item.getMonth()),
-                        item.getIncome(),
-                        item.getExpense(),
-                        balance
-                     );
-                })
-                .toList();
+        Map<Month, MonthlySummaryProjection> summaryByMonth =
+                transactionRepository.findMonthlySummary(
+                                user.getId(),
+                                year
+                        )
+                        .stream()
+                        .collect(Collectors.toMap(
+                                item -> Month.of(item.getMonth()),
+                                Function.identity()
+                        ));
+
+        List<MonthlySummaryResponse> response =
+                new ArrayList<>();
+
+        for (Month month : Month.values()) {
+
+            MonthlySummaryProjection summary =
+                    summaryByMonth.get(month);
+
+            if (summary == null) {
+                response.add(
+                        new MonthlySummaryResponse(
+                                month,
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO
+                        )
+                );
+
+                continue;
+            }
+
+            response.add(
+                    new MonthlySummaryResponse(
+                            month,
+                            summary.getIncome(),
+                            summary.getExpense(),
+                            summary.getIncome().subtract(
+                                    summary.getExpense()
+                            )
+                    )
+            );
+        }
+
+        return response;
     }
 
     @Override
