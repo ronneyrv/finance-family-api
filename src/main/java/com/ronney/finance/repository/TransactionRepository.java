@@ -169,4 +169,37 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("householdId") UUID householdId,
             @Param("year") Integer year
     );
+
+    @Query("""
+    SELECT
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN t.type = 'INCOME'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ),
+            0
+        )
+        -
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN t.type = 'EXPENSE'
+                    THEN t.amount
+                    ELSE 0
+                END
+            ),
+            0
+        )
+    FROM Transaction t
+    WHERE t.user.household.id = :householdId
+    AND t.transactionDate < :startDate
+    AND t.transactionKind = 'REGULAR'
+    """)
+    BigDecimal sumHouseholdResultBefore(
+            @Param("householdId") UUID householdId,
+            @Param("startDate") LocalDate startDate
+    );
 }
