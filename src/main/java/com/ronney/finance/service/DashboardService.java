@@ -19,6 +19,8 @@ public interface DashboardService {
 
     List<CumulativeResultResponse> getCumulativeResult( Integer year );
 
+    List<CumulativeResultResponse> getMyCumulativeResult(Integer year);
+
     List<CreditCardInvoiceSummaryResponse> getCreditCardSummaries();
 
     List<MonthlyCreditCardTrendResponse> getCreditCardTrend( Integer year );

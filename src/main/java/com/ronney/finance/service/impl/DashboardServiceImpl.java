@@ -805,4 +805,40 @@ public class DashboardServiceImpl implements DashboardService {
                 unpaidCreditCardInstallments
         );
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CumulativeResultResponse> getMyCumulativeResult(
+            Integer year
+    ) {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        UUID userId = user.getId();
+
+        Map<Month, MonthlySummaryProjection> monthlySummary =
+                transactionRepository
+                        .findMonthlySummary(
+                                userId,
+                                year
+                        )
+                        .stream()
+                        .collect(
+                                Collectors.toMap(
+                                        projection -> Month.of(projection.getMonth()),
+                                        Function.identity()
+                                )
+                        );
+
+        BigDecimal initialAccumulated =
+                transactionRepository.sumUserResultBefore(
+                        userId,
+                        LocalDate.of(year, 1, 1)
+                );
+
+        return buildCumulativeResult(
+                monthlySummary,
+                initialAccumulated
+        );
+    }
 }
