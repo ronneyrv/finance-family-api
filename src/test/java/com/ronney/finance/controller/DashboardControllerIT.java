@@ -931,4 +931,84 @@ class DashboardControllerIT extends BaseIntegrationTest {
                                 .value(8500)
                 );
     }
+
+    @Test
+    void shouldReturnIndividualCumulativeResultForAuthenticatedUser()
+            throws Exception {
+
+        String userOneToken = getToken(
+                "user.one@example.test",
+                "test-password"
+        );
+
+        String userTwoToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        createTransaction(
+                userOneToken,
+                10000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2025, 12, 15)
+        );
+
+        createTransaction(
+                userOneToken,
+                3000,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2025, 12, 20)
+        );
+
+        createTransaction(
+                userOneToken,
+                2000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2026, 1, 10)
+        );
+
+        createTransaction(
+                userOneToken,
+                500,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 1, 15)
+        );
+
+        createTransaction(
+                userTwoToken,
+                20000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2025, 12, 10)
+        );
+
+        createTransaction(
+                userTwoToken,
+                5000,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2025, 12, 20)
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/cumulative-result/me")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userOneToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(12))
+                .andExpect(jsonPath("$[0].month").value("JANUARY"))
+                .andExpect(jsonPath("$[0].income").value(2000))
+                .andExpect(jsonPath("$[0].expense").value(500))
+                .andExpect(jsonPath("$[0].monthlyResult").value(1500))
+                .andExpect(jsonPath("$[0].accumulatedResult").value(8500));
+    }
 }

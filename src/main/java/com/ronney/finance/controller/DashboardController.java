@@ -281,6 +281,46 @@ public class DashboardController {
     }
 
     @Operation(
+            summary = "Retrieve individual cumulative financial result",
+            description = """
+                Returns the cumulative financial result
+                for the authenticated user.
+
+                Includes:
+                - Monthly income
+                - Monthly expenses
+                - Monthly result
+                - Cumulative result
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Individual cumulative result retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/cumulative-result/me")
+    public ResponseEntity<List<CumulativeResultResponse>> getMyCumulativeResult(
+
+            @RequestParam
+            @Parameter(
+                    description = "Year used to generate the individual cumulative result",
+                    example = "2026"
+            )
+            Integer year
+
+    ) {
+
+        return ResponseEntity.ok(
+                dashboardService.getMyCumulativeResult(year)
+        );
+    }
+
+    @Operation(
             summary = "Get household income commitment",
             description = """
             Returns the current household income commitment.
