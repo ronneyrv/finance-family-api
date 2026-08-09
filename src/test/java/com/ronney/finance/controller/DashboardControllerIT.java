@@ -1011,4 +1011,44 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[0].monthlyResult").value(1500))
                 .andExpect(jsonPath("$[0].accumulatedResult").value(8500));
     }
+
+    @Test
+    void shouldReturnHouseholdFinancialHealth()
+            throws Exception {
+
+        String userOneToken = getToken(
+                "user.one@example.test",
+                "test-password"
+        );
+
+        String userTwoToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        createFinancialAccount(userOneToken);
+        createFinancialAccount(userTwoToken);
+
+        UUID cardId = createCreditCard(userOneToken);
+
+        createPurchase(
+                userOneToken,
+                cardId,
+                LocalDate.of(2026, 1, 20)
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/financial-health")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userOneToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAssets").value(10000))
+                .andExpect(jsonPath("$.totalLiabilities").value(1200))
+                .andExpect(jsonPath("$.netWorth").value(8800))
+                .andExpect(jsonPath("$.healthScore").value(88.00))
+                .andExpect(jsonPath("$.healthLevel").value("EXCELLENT"));
+    }
 }

@@ -57,6 +57,35 @@ public class DashboardController {
     }
 
     @Operation(
+            summary = "Get household financial health",
+            description = """
+            Returns the current financial health of the authenticated user's household.
+            Includes:
+            - Total household assets
+            - Total household liabilities
+            - Current household net worth
+            - Financial health score
+            - Financial health level
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Financial health retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/financial-health")
+    public ResponseEntity<FinancialHealthResponse> getFinancialHealth() {
+        return ResponseEntity.ok(
+                dashboardService.getFinancialHealth()
+        );
+    }
+
+    @Operation(
             summary = "Get expenses by category",
             description = """
                 Returns the total amount of expenses grouped by category

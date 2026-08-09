@@ -5,12 +5,14 @@ import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.CommitmentLevel;
+import com.ronney.finance.domain.enums.FinancialHealthLevel;
 import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.response.*;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
+import com.ronney.finance.repository.FinancialAccountRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.repository.projection.MonthlySummaryProjection;
@@ -51,6 +53,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final RecurringTransactionRepository recurringTransactionRepository;
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInstallmentRepository installmentRepository;
+    private final FinancialAccountRepository financialAccountRepository;
     private final CurrentUserService currentUserService;
 
     private boolean occursInMonth(
@@ -294,6 +297,54 @@ public class DashboardServiceImpl implements DashboardService {
         return CommitmentLevel.HIGH;
     }
 
+    private BigDecimal calculateFinancialHealthScore(
+            BigDecimal totalAssets,
+            BigDecimal totalLiabilities
+    ) {
+
+        if (totalAssets.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        if (totalLiabilities.compareTo(totalAssets) >= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return BigDecimal.ONE
+                .subtract(
+                        totalLiabilities.divide(
+                                totalAssets,
+                                4,
+                                RoundingMode.HALF_UP
+                        )
+                )
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private FinancialHealthLevel calculateFinancialHealthLevel(
+            BigDecimal healthScore
+    ) {
+
+        if (healthScore.compareTo(BigDecimal.valueOf(80)) >= 0) {
+            return FinancialHealthLevel.EXCELLENT;
+        }
+
+        if (healthScore.compareTo(BigDecimal.valueOf(60)) >= 0) {
+            return FinancialHealthLevel.GOOD;
+        }
+
+        if (healthScore.compareTo(BigDecimal.valueOf(40)) >= 0) {
+            return FinancialHealthLevel.MODERATE;
+        }
+
+        if (healthScore.compareTo(BigDecimal.valueOf(20)) >= 0) {
+            return FinancialHealthLevel.WEAK;
+        }
+
+        return FinancialHealthLevel.CRITICAL;
+    }
+
     @Override
     public DashboardSummaryResponse getSummary() {
         User user = currentUserService.getAuthenticatedUser();
@@ -366,6 +417,47 @@ public class DashboardServiceImpl implements DashboardService {
                 balance,
                 cashBalance,
                 bankBalance
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FinancialHealthResponse getFinancialHealth() {
+
+        User user = currentUserService.getAuthenticatedUser();
+
+        UUID householdId = user.getHousehold().getId();
+
+        BigDecimal totalAssets =
+                financialAccountRepository.sumCurrentBalanceByHousehold(
+                        householdId
+                );
+
+        BigDecimal totalLiabilities =
+                installmentRepository.sumUnpaidInstallmentsByHousehold(
+                        householdId
+                );
+
+        BigDecimal netWorth =
+                totalAssets.subtract(totalLiabilities);
+
+        BigDecimal healthScore =
+                calculateFinancialHealthScore(
+                        totalAssets,
+                        totalLiabilities
+                );
+
+        FinancialHealthLevel healthLevel =
+                calculateFinancialHealthLevel(
+                        healthScore
+                );
+
+        return new FinancialHealthResponse(
+                totalAssets,
+                totalLiabilities,
+                netWorth,
+                healthScore,
+                healthLevel
         );
     }
 
