@@ -176,10 +176,11 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private List<CumulativeResultResponse> buildCumulativeResult(
-            Map<Month, MonthlySummaryProjection> monthlySummary
+            Map<Month, MonthlySummaryProjection> monthlySummary,
+            BigDecimal initialAccumulated
     ) {
 
-        BigDecimal accumulated = BigDecimal.ZERO;
+        BigDecimal accumulated = initialAccumulated;
 
         List<CumulativeResultResponse> result = new ArrayList<>();
 
@@ -731,13 +732,24 @@ public class DashboardServiceImpl implements DashboardService {
 
         User user = currentUserService.getAuthenticatedUser();
 
+        UUID householdId = user.getHousehold().getId();
+
         Map<Month, MonthlySummaryProjection> monthlySummary =
                 getHouseholdMonthlySummary(
-                        user.getHousehold().getId(),
+                        householdId,
                         year
                 );
 
-        return buildCumulativeResult(monthlySummary);
+        BigDecimal initialAccumulated =
+                transactionRepository.sumHouseholdResultBefore(
+                        householdId,
+                        LocalDate.of(year, 1, 1)
+                );
+
+        return buildCumulativeResult(
+                monthlySummary,
+                initialAccumulated
+        );
     }
 
     @Override

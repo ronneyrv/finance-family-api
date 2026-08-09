@@ -225,31 +225,51 @@ class DashboardControllerIT extends BaseIntegrationTest {
             String paymentMethod
     ) throws Exception {
 
+        createTransaction(
+                token,
+                amount,
+                type,
+                paymentMethod,
+                LocalDate.of(2026, 7, 1)
+        );
+    }
+
+    private void createTransaction(
+            String token,
+            int amount,
+            String type,
+            String paymentMethod,
+            LocalDate transactionDate
+    ) throws Exception {
+
         boolean income = type.equals("INCOME");
 
         UUID accountId = createFinancialAccount(token);
 
-        Category category = categoryRepository
-                .findByName(income ? "Receita" : "Alimentação")
-                .orElseThrow();
+        Category category =
+                categoryRepository
+                        .findByName(income ? "Receita" : "Alimentação")
+                        .orElseThrow();
 
-        SubCategory subCategory = subCategoryRepository
-                .findByName(income ? "Salário" : "Supermercado")
-                .orElseThrow();
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName(income ? "Salário" : "Supermercado")
+                        .orElseThrow();
 
         String body = """
-            {
-                "description":"Transaction test",
-                "amount":%d,
-                "transactionDate":"2026-07-01",
-                "type":"%s",
-                "paymentMethod":"%s",
-                "accountId":"%s",
-                "categoryId":"%s",
-                "subCategoryId":"%s"
-            }
-            """.formatted(
+        {
+            "description":"Transaction test",
+            "amount":%d,
+            "transactionDate":"%s",
+            "type":"%s",
+            "paymentMethod":"%s",
+            "accountId":"%s",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
                 amount,
+                transactionDate,
                 type,
                 paymentMethod,
                 accountId,
@@ -838,5 +858,77 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[11].month").value("DECEMBER"))
                 .andExpect(jsonPath("$[11].income").value(0))
                 .andExpect(jsonPath("$[11].expense").value(0));
+    }
+
+    @Test
+    void shouldCarryPreviousYearAccumulatedResultIntoJanuary()
+            throws Exception {
+
+        String token = getToken();
+
+        createTransaction(
+                token,
+                10000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2025, 12, 15)
+        );
+
+        createTransaction(
+                token,
+                3000,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2025, 12, 20)
+        );
+
+        createTransaction(
+                token,
+                2000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2026, 1, 10)
+        );
+
+        createTransaction(
+                token,
+                500,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 1, 15)
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/cumulative-result")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(12))
+
+                .andExpect(
+                        jsonPath("$[0].month")
+                                .value("JANUARY")
+                )
+                .andExpect(
+                        jsonPath("$[0].income")
+                                .value(2000)
+                )
+                .andExpect(
+                        jsonPath("$[0].expense")
+                                .value(500)
+                )
+                .andExpect(
+                        jsonPath("$[0].monthlyResult")
+                                .value(1500)
+                )
+                .andExpect(
+                        jsonPath("$[0].accumulatedResult")
+                                .value(8500)
+                );
     }
 }
