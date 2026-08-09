@@ -7,6 +7,8 @@ import java.util.List;
 public interface DashboardService {
     DashboardSummaryResponse getSummary();
 
+    FinancialHealthResponse getFinancialHealth();
+
     DashboardFiltersResponse getFilters();
 
     List<CategoryExpenseResponse> getExpensesByCategory();
