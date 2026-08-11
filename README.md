@@ -605,6 +605,253 @@ A porta `8080` da aplicação não é acessível publicamente.
 
 Todo o tráfego público destinado à API passa pelo Nginx utilizando HTTPS.
 
+## Backup e Disaster Recovery
+
+A infraestrutura de produção possui um fluxo de backup e recuperação do PostgreSQL baseado em `pg_dump`, compressão com gzip, validação de integridade e política de retenção.
+
+Os backups são executados diretamente sobre o container `finance-postgres`, enquanto a aplicação permanece disponível durante a execução do backup.
+
+### Arquitetura de Backup
+
+O fluxo de backup utiliza os seguintes componentes:
+
+```text
+Cron
+  ↓
+/opt/finance-api/app/scripts/backup.sh
+  ↓
+Docker Container
+finance-postgres
+  ↓
+pg_dump
+  ↓
+gzip
+  ↓
+/opt/finance-api/backups/
+  ↓
+Backup .sql.gz
+```
+
+### Agendamento
+
+O backup automático é executado diariamente às 05:00 UTC, correspondendo a 02:00 BRT.
+
+A configuração atual é:
+
+```text
+0 5 * * * /opt/finance-api/app/scripts/backup.sh >> /var/log/finance-backup.log 2>&1
+```
+
+A VM de produção utiliza UTC como timezone. O horário correspondente em Brasília é 02:00 BRT.
+
+O resultado da execução automática é registrado em:
+
+```text
+/var/log/finance-backup.log
+```
+
+O agendamento é instalado no crontab do usuário `root`.
+
+Para verificar o agendamento atualmente instalado:
+
+```bash
+sudo crontab -l
+```
+
+Para verificar o estado do serviço cron:
+
+```bash
+systemctl status cron --no-pager
+```
+
+### Diretório de Backups
+
+Os arquivos de backup são armazenados em:
+
+```text
+/opt/finance-api/backups
+```
+
+O nome dos arquivos segue o padrão:
+
+```text
+finance-YYYY-MM-DD_HH-MM-SS.sql.gz
+```
+
+Exemplo:
+
+```text
+finance-2026-08-11_21-52-27.sql.gz
+```
+
+A política de retenção mantém os 7 backups mais recentes.
+
+### Executando um Backup Manual
+
+Para executar um backup manualmente na VM de produção:
+
+```bash
+sudo /opt/finance-api/app/scripts/backup.sh
+```
+
+O script utiliza as configurações armazenadas em:
+
+```text
+/opt/finance-api/compose/.env
+```
+
+O script verifica previamente se o arquivo `.env` e o container `finance-postgres` estão disponíveis.
+
+### Validação e Retenção
+
+Após executar o `pg_dump`, o backup é compactado utilizando gzip.
+
+O script valida a integridade do arquivo através de:
+
+```bash
+gzip -t /opt/finance-api/backups/finance-YYYY-MM-DD_HH-MM-SS.sql.gz
+```
+
+Caso a validação falhe, o arquivo inválido é removido e o processo termina com erro.
+
+A política de retenção mantém os 7 backups mais recentes.
+
+Backups mais antigos são removidos automaticamente após a criação e validação do novo backup.
+
+Para verificar os backups disponíveis:
+
+```bash
+ls -lh /opt/finance-api/backups/
+```
+
+### Procedimento de Restore
+
+A recuperação do banco de dados utiliza:
+
+```text
+scripts/restore.sh
+```
+
+O script recebe como argumento o caminho do backup que deverá ser restaurado.
+
+Exemplo:
+
+```bash
+sudo /opt/finance-api/app/scripts/restore.sh \
+  /opt/finance-api/backups/finance-YYYY-MM-DD_HH-MM-SS.sql.gz
+```
+
+O restore é um procedimento destrutivo e deve ser executado somente quando a recuperação do banco de dados for necessária.
+
+### Pré-requisitos do Restore
+
+Antes de iniciar o procedimento:
+
+1. confirmar que o backup escolhido existe;
+2. validar a integridade do arquivo;
+3. confirmar que o arquivo de ambiente de produção está disponível;
+4. confirmar que o container `finance-postgres` está disponível;
+5. confirmar que existe uma janela operacional adequada para interromper temporariamente a API.
+
+Para validar o backup antes do restore:
+
+```bash
+gzip -t /opt/finance-api/backups/finance-YYYY-MM-DD_HH-MM-SS.sql.gz
+```
+
+### Fluxo de Recuperação
+
+O `restore.sh` executa o seguinte fluxo:
+
+```text
+Backup selecionado
+        ↓
+Validação dos pré-requisitos
+        ↓
+Parada da Finance API
+        ↓
+Encerramento das conexões PostgreSQL
+        ↓
+Remoção do banco existente
+        ↓
+Criação de um novo banco
+        ↓
+Descompressão do backup
+        ↓
+Restauração via psql
+        ↓
+Validação das tabelas restauradas
+        ↓
+Inicialização da Finance API
+        ↓
+Health Check
+        ↓
+Sistema recuperado
+```
+
+Durante o restore, a Finance API permanece parada para evitar novas conexões ao banco enquanto o estado do PostgreSQL é reconstruído.
+
+As conexões ativas com o banco de produção são encerradas antes da recriação do banco.
+
+O banco existente é então removido e recriado.
+
+O conteúdo do backup é descompactado e enviado ao PostgreSQL através do `psql`.
+
+Após a restauração, o script verifica as tabelas existentes no banco restaurado.
+
+Somente depois de uma restauração bem-sucedida a Finance API é iniciada novamente.
+
+O processo aguarda o endpoint:
+
+```text
+http://127.0.0.1:8080/actuator/health
+```
+
+até que a aplicação retorne:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+Se a restauração falhar, a Finance API permanece parada.
+
+### Checklist de Disaster Recovery
+
+Em caso de perda ou corrupção dos dados de produção:
+
+1. identificar a necessidade de recuperação;
+2. identificar o backup apropriado;
+3. validar a integridade do arquivo;
+4. confirmar o ambiente de produção;
+5. executar o procedimento de restore;
+6. acompanhar os logs do processo;
+7. confirmar a existência das tabelas restauradas;
+8. confirmar que a Finance API iniciou corretamente;
+9. validar o health check;
+10. validar a autenticação da aplicação;
+11. validar operações críticas da aplicação;
+12. confirmar a integridade funcional dos dados recuperados.
+
+O processo de recuperação depende do tamanho do backup e do volume de dados restaurado. O projeto não define atualmente um RTO numérico formal.
+
+### Considerações Operacionais
+
+Os backups são realizados online através do `pg_dump`. O PostgreSQL e a Finance API permanecem disponíveis durante a execução normal do backup.
+
+A execução do backup pode gerar consumo adicional temporário de CPU e I/O no PostgreSQL.
+
+Por esse motivo, o backup está programado para uma janela de menor utilização:
+
+```text
+05:00 UTC / 02:00 BRT
+```
+
+A infraestrutura de produção mantém o servidor em UTC para evitar dependência de timezone local.
+
+Os backups permanecem armazenados localmente na VM de produção. A implementação atual não utiliza armazenamento externo, replicação PostgreSQL ou Point-in-Time Recovery.
+
 ## Pipeline de CI/CD
 
 O pipeline de integração e entrega contínua é executado pelo GitHub Actions.
