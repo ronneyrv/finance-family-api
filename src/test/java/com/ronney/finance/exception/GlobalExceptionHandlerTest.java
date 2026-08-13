@@ -202,6 +202,21 @@ class GlobalExceptionHandlerTest {
         );
     }
 
+    @Test
+    void shouldReturnGenericMessageForUnexpectedException() {
+
+        var response = handler.handleException(
+                new RuntimeException("Sensitive internal database details"),
+                request
+        );
+
+        assertErrorResponse(
+                response.getBody(),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred."
+        );
+    }
+
     private void validationMethod(String value) {
     }
 
