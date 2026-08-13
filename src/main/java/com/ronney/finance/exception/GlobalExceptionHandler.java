@@ -35,14 +35,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.NOT_FOUND.value(),
-                        HttpStatus.NOT_FOUND.getReasonPhrase(),
-                        ex.getMessage(),
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage(),
+                request
+        );
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -55,14 +52,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.BAD_REQUEST.value(),
-                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                        ex.getMessage(),
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                request
+        );
 
         return ResponseEntity
                 .badRequest()
@@ -87,14 +81,11 @@ public class GlobalExceptionHandler {
                         )
                         .orElse("Validation error");
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.BAD_REQUEST.value(),
-                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                        message,
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                message,
+                request
+        );
 
         return ResponseEntity
                 .badRequest()
@@ -107,14 +98,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.BAD_REQUEST.value(),
-                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                        "Malformed JSON request.",
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Malformed JSON request.",
+                request
+        );
 
         return ResponseEntity
                 .badRequest()
@@ -127,14 +115,13 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.CONFLICT.value(),
-                        HttpStatus.CONFLICT.getReasonPhrase(),
-                        resolveIntegrityViolationMessage(ex),
-                        request.getRequestURI()
-                );
+        String message = resolveIntegrityViolationMessage(ex);
+
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.CONFLICT,
+                message,
+                request
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -167,14 +154,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.UNAUTHORIZED.value(),
-                        HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                        "Invalid email or password.",
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid email or password.",
+                request
+        );
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -187,14 +171,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.UNAUTHORIZED.value(),
-                        HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                        "Invalid email or password.",
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid email or password.",
+                request
+        );
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -207,17 +188,15 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse error = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.CONFLICT,
                 ex.getMessage(),
-                request.getRequestURI()
+                request
         );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(error);
+                .body(response);
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -228,18 +207,29 @@ public class GlobalExceptionHandler {
 
         HttpStatus status = ex.getStatus();
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        status.value(),
-                        status.getReasonPhrase(),
-                        ex.getMessage(),
-                        request.getRequestURI()
-                );
+        ErrorResponse response = buildErrorResponse(
+                ex.getStatus(),
+                ex.getMessage(),
+                request
+        );
 
         return ResponseEntity
                 .status(status)
                 .body(response);
+    }
+
+    private ErrorResponse buildErrorResponse(
+            HttpStatus status,
+            String message,
+            HttpServletRequest request
+    ) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                request.getRequestURI()
+        );
     }
 
     private String resolveIntegrityViolationMessage(
