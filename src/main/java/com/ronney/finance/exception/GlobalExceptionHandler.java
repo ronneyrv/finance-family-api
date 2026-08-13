@@ -1,6 +1,8 @@
 package com.ronney.finance.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,9 @@ public class GlobalExceptionHandler {
             Unable to delete this credit card because it has associated purchases or installments.
             """.strip()
     );
+
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(
@@ -134,14 +139,17 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
 
-        ErrorResponse response =
-                new ErrorResponse(
-                        LocalDateTime.now(),
-                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                        HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                        ex.getMessage(),
-                        request.getRequestURI()
-                );
+        log.error(
+                "Unexpected error processing request {}",
+                request.getRequestURI(),
+                ex
+        );
+
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred.",
+                request
+        );
 
         return ResponseEntity
                 .internalServerError()
