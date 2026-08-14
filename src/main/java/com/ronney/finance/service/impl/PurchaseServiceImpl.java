@@ -11,6 +11,7 @@ import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
 import com.ronney.finance.dto.request.InvoicePaymentRequest;
+import com.ronney.finance.dto.request.PurchaseCategoryRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceInstallmentResponse;
@@ -364,6 +365,77 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .stream()
                 .map(this::toPendingPurchaseResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public void updateCategory(
+            UUID purchaseId,
+            PurchaseCategoryRequest request
+    ) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        Purchase purchase = purchaseRepository
+                .findByIdAndCreditCardUserId(
+                        purchaseId,
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Purchase not found."
+                        )
+                );
+
+        if (request.subCategoryId() != null
+                && request.categoryId() == null) {
+            throw new IllegalArgumentException(
+                    "Category is required when SubCategory is provided."
+            );
+        }
+
+        Category category = null;
+
+        if (request.categoryId() != null) {
+            category = categoryRepository
+                    .findById(request.categoryId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Category not found."
+                            )
+                    );
+
+            if (!TransactionType.EXPENSE.equals(category.getType())) {
+                throw new IllegalArgumentException(
+                        "Category does not match purchase type."
+                );
+            }
+        }
+
+        SubCategory subCategory = null;
+
+        if (request.subCategoryId() != null) {
+            subCategory = subCategoryRepository
+                    .findById(request.subCategoryId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "SubCategory not found."
+                            )
+                    );
+        }
+
+        if (subCategory != null
+                && !subCategory.getCategory()
+                .getId()
+                .equals(category.getId())) {
+            throw new IllegalArgumentException(
+                    "SubCategory does not belong to Category."
+            );
+        }
+
+        purchase.setCategory(category);
+        purchase.setSubCategory(subCategory);
+
+        purchaseRepository.save(purchase);
     }
 
     @Override

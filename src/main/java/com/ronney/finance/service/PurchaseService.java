@@ -1,6 +1,7 @@
 package com.ronney.finance.service;
 
 import com.ronney.finance.dto.request.InvoicePaymentRequest;
+import com.ronney.finance.dto.request.PurchaseCategoryRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
@@ -29,6 +30,11 @@ public interface PurchaseService {
     );
 
     List<PendingPurchaseResponse> findPendingPurchases();
+
+    void updateCategory(
+            UUID purchaseId,
+            PurchaseCategoryRequest request
+    );
 
     void deletePurchase(UUID id);
 }
