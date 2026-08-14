@@ -13,6 +13,7 @@ import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceInstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
+import com.ronney.finance.dto.response.PendingPurchaseResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
@@ -298,6 +299,39 @@ public class PurchaseServiceImpl implements PurchaseService {
         transactionRepository.save(paymentTransaction);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PendingPurchaseResponse> findPendingPurchases() {
+        User user = currentUserService.getAuthenticatedUser();
+
+        return purchaseRepository
+                .findDistinctByCreditCardUserIdAndInstallmentsPaidFalseOrderByPurchaseDateDesc(
+                        user.getId()
+                )
+                .stream()
+                .map(this::toPendingPurchaseResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void deletePurchase(UUID id) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        Purchase purchase = purchaseRepository
+                .findByIdAndCreditCardUserId(
+                        id,
+                        user.getId()
+                )
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Purchase not found."
+                        )
+                );
+
+        purchaseRepository.delete(purchase);
+    }
+
     private BigDecimal calculateAvailableLimit(
             UUID creditCardId,
             CreditCard card
@@ -344,6 +378,22 @@ public class PurchaseServiceImpl implements PurchaseService {
                 installment.getInvoiceMonth(),
                 installment.getInvoiceYear(),
                 installment.getPaid()
+        );
+    }
+
+    private PendingPurchaseResponse toPendingPurchaseResponse(
+            Purchase purchase
+    ) {
+        CreditCard card = purchase.getCreditCard();
+
+        return new PendingPurchaseResponse(
+                purchase.getId(),
+                purchase.getDescription(),
+                purchase.getPurchaseDate(),
+                purchase.getTotalAmount(),
+                purchase.getInstallmentCount(),
+                card.getId(),
+                card.getName()
         );
     }
 }

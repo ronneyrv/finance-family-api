@@ -4,7 +4,7 @@ import com.ronney.finance.dto.request.InvoicePaymentRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
-import org.springframework.transaction.annotation.Transactional;
+import com.ronney.finance.dto.response.PendingPurchaseResponse;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,4 +27,8 @@ public interface PurchaseService {
             Integer year,
             InvoicePaymentRequest request
     );
+
+    List<PendingPurchaseResponse> findPendingPurchases();
+
+    void deletePurchase(UUID id);
 }

@@ -4,6 +4,7 @@ import com.ronney.finance.dto.request.InvoicePaymentRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
+import com.ronney.finance.dto.response.PendingPurchaseResponse;
 import com.ronney.finance.service.PurchaseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -64,6 +65,28 @@ public class PurchaseController {
                 id,
                 request
         );
+    }
+
+    @Operation(
+            summary = "List pending credit card purchases",
+            description = """
+            Returns the most recent credit card purchases
+            that have at least one unpaid installment.
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Pending purchases retrieved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/purchases/pending")
+    public List<PendingPurchaseResponse> findPendingPurchases() {
+        return purchaseService.findPendingPurchases();
     }
 
     @Operation(
@@ -154,6 +177,35 @@ public class PurchaseController {
                 year,
                 request
         );
+    }
+
+    @Operation(
+            summary = "Delete credit card purchase",
+            description = "Deletes a credit card purchase and its associated installments."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Purchase deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Purchase not found"
+            )
+    })
+    @DeleteMapping("/purchases/{purchaseId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePurchase(
+            @Parameter(
+                    description = "Purchase identifier"
+            )
+            @PathVariable UUID purchaseId
+    ) {
+        purchaseService.deletePurchase(purchaseId);
     }
 }
 

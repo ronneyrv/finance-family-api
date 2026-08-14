@@ -7,8 +7,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -490,5 +489,313 @@ class PurchaseControllerIT extends BaseIntegrationTest {
                         jsonPath("$.currentBalance")
                                 .value(4000.00)
                 );
+    }
+
+    @Test
+    void shouldListPendingCreditCardPurchases() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        String body = """
+        {
+            "description":"Compra pendente",
+            "totalAmount":1200,
+            "installments":3,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].description")
+                        .value("Compra pendente"))
+                .andExpect(jsonPath("$[0].purchaseDate")
+                        .value("2026-09-10"))
+                .andExpect(jsonPath("$[0].totalAmount")
+                        .value(1200))
+                .andExpect(jsonPath("$[0].installmentCount")
+                        .value(3))
+                .andExpect(jsonPath("$[0].creditCardId")
+                        .value(cardId.toString()))
+                .andExpect(jsonPath("$[0].creditCardName")
+                        .value("Nubank"));
+    }
+
+    @Test
+    void shouldNotListPurchaseAfterAllInstallmentsArePaid() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+        UUID accountId = createFinancialAccount(token);
+
+        String body = """
+        {
+            "description":"Compra à vista no crédito",
+            "totalAmount":500,
+            "installments":1,
+            "purchaseDate":"2026-09-25"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].description")
+                        .value("Compra à vista no crédito"));
+
+        payInvoice(
+                token,
+                cardId,
+                accountId
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldListPendingPurchasesOrderedByPurchaseDateDesc() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        String olderPurchase = """
+        {
+            "description":"Compra antiga",
+            "totalAmount":300,
+            "installments":1,
+            "purchaseDate":"2026-09-01"
+        }
+        """;
+
+        String newerPurchase = """
+        {
+            "description":"Compra recente",
+            "totalAmount":500,
+            "installments":1,
+            "purchaseDate":"2026-09-15"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(olderPurchase)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(newerPurchase)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].description")
+                        .value("Compra recente"))
+                .andExpect(jsonPath("$[1].description")
+                        .value("Compra antiga"));
+    }
+
+    @Test
+    void shouldDeletePurchaseAndItsInstallments() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        String body = """
+        {
+            "description":"Compra para excluir",
+            "totalAmount":900,
+            "installments":3,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        mockMvc.perform(
+                        delete(
+                                "/api/v1/credit-cards/purchases/{purchaseId}",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldNotDeletePurchaseBelongingToAnotherUser() throws Exception {
+        String ownerToken = getToken();
+        UUID cardId = createCreditCard(ownerToken);
+
+        String body = """
+        {
+            "description":"Compra de outro usuário",
+            "totalAmount":900,
+            "installments":3,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String otherUserToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        mockMvc.perform(
+                        delete(
+                                "/api/v1/credit-cards/purchases/{purchaseId}",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + otherUserToken
+                                )
+                )
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].description")
+                        .value("Compra de outro usuário"));
     }
 }
