@@ -1,6 +1,7 @@
 package com.ronney.finance.controller;
 
 import com.ronney.finance.dto.request.InvoicePaymentRequest;
+import com.ronney.finance.dto.request.PurchaseCategoryRequest;
 import com.ronney.finance.dto.request.PurchaseRequest;
 import com.ronney.finance.dto.response.InstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
@@ -175,6 +176,46 @@ public class PurchaseController {
                 id,
                 month,
                 year,
+                request
+        );
+    }
+
+    @Operation(
+            summary = "Update credit card purchase category",
+            description = """
+            Updates the category and subcategory of a credit card purchase.
+            Both fields may be null to remove the classification.
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Purchase category updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid category or subcategory"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Purchase, category or subcategory not found"
+            )
+    })
+    @PatchMapping("/purchases/{purchaseId}/category")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateCategory(
+            @Parameter(
+                    description = "Purchase identifier"
+            )
+            @PathVariable UUID purchaseId,
+            @Valid @RequestBody PurchaseCategoryRequest request
+    ) {
+        purchaseService.updateCategory(
+                purchaseId,
                 request
         );
     }

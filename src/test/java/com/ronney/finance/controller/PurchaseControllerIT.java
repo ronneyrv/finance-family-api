@@ -667,6 +667,634 @@ class PurchaseControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldUpdatePendingPurchaseCategoryAndSubCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        Category category = categoryRepository
+                .findByName("Pessoal")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Vestuário")
+                .orElseThrow();
+
+        String body = """
+        {
+            "description":"Compra para classificar",
+            "totalAmount":900,
+            "installments":3,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId")
+                        .value(category.getId().toString()))
+                .andExpect(jsonPath("$[0].categoryName")
+                        .value("Pessoal"))
+                .andExpect(jsonPath("$[0].subCategoryId")
+                        .value(subCategory.getId().toString()))
+                .andExpect(jsonPath("$[0].subCategoryName")
+                        .value("Vestuário"));
+    }
+
+    @Test
+    void shouldUpdatePendingPurchaseCategoryWithoutSubCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        Category category = categoryRepository
+                .findByName("Pessoal")
+                .orElseThrow();
+
+        String body = """
+        {
+            "description":"Compra somente categoria",
+            "totalAmount":600,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":null
+        }
+        """.formatted(category.getId());
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId")
+                        .value(category.getId().toString()))
+                .andExpect(jsonPath("$[0].categoryName")
+                        .value("Pessoal"))
+                .andExpect(jsonPath("$[0].subCategoryId")
+                        .doesNotExist())
+                .andExpect(jsonPath("$[0].subCategoryName")
+                        .doesNotExist());
+    }
+
+    @Test
+    void shouldRemovePendingPurchaseCategoryAndSubCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        Category category = categoryRepository
+                .findByName("Pessoal")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Vestuário")
+                .orElseThrow();
+
+        String purchaseBody = """
+        {
+            "description":"Compra para remover categoria",
+            "totalAmount":700,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(purchaseBody)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                {
+                                    "categoryId":null,
+                                    "subCategoryId":null
+                                }
+                                """)
+                )
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId")
+                        .doesNotExist())
+                .andExpect(jsonPath("$[0].categoryName")
+                        .doesNotExist())
+                .andExpect(jsonPath("$[0].subCategoryId")
+                        .doesNotExist())
+                .andExpect(jsonPath("$[0].subCategoryName")
+                        .doesNotExist());
+    }
+
+    @Test
+    void shouldRejectSubCategoryWithoutCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Vestuário")
+                .orElseThrow();
+
+        String purchaseBody = """
+        {
+            "description":"Compra inválida",
+            "totalAmount":500,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(purchaseBody)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":null,
+            "subCategoryId":"%s"
+        }
+        """.formatted(subCategory.getId());
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(
+                                "Category is required when SubCategory is provided."
+                        ));
+    }
+
+    @Test
+    void shouldRejectIncomeCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        Category category = categoryRepository
+                .findByName("Receita")
+                .orElseThrow();
+
+        String purchaseBody = """
+        {
+            "description":"Compra inválida",
+            "totalAmount":500,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(purchaseBody)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":null
+        }
+        """.formatted(category.getId());
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Category does not match purchase type."));
+    }
+
+    @Test
+    void shouldRejectSubCategoryFromDifferentCategory() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token);
+
+        Category category = categoryRepository
+                .findByName("Pessoal")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Vestuário")
+                .orElseThrow();
+
+        Category anotherCategory = categoryRepository.save(
+                Category.builder()
+                        .id(UUID.randomUUID())
+                        .name("Outra categoria " + UUID.randomUUID())
+                        .type(TransactionType.EXPENSE)
+                        .build()
+        );
+
+        String purchaseBody = """
+        {
+            "description":"Compra inválida",
+            "totalAmount":500,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(purchaseBody)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                anotherCategory.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value(
+                                "SubCategory does not belong to Category."
+                        ));
+    }
+
+    @Test
+    void shouldNotUpdatePurchaseCategoryUsingAnotherUser() throws Exception {
+        String ownerToken = getToken();
+
+        UUID cardId = createCreditCard(ownerToken);
+
+        String purchaseBody = """
+        {
+            "description":"Compra de outro usuário",
+            "totalAmount":800,
+            "installments":2,
+            "purchaseDate":"2026-09-10"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(purchaseBody)
+                )
+                .andExpect(status().isCreated());
+
+        String pendingResponse = mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID purchaseId = UUID.fromString(
+                objectMapper
+                        .readTree(pendingResponse)
+                        .get(0)
+                        .get("id")
+                        .asText()
+        );
+
+        String otherUserToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        Category category = categoryRepository
+                .findByName("Pessoal")
+                .orElseThrow();
+
+        String categoryBody = """
+        {
+            "categoryId":"%s",
+            "subCategoryId":null
+        }
+        """.formatted(category.getId());
+
+        mockMvc.perform(
+                        patch(
+                                "/api/v1/credit-cards/purchases/{purchaseId}/category",
+                                purchaseId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + otherUserToken
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(categoryBody)
+                )
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/purchases/pending")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + ownerToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].description")
+                        .value("Compra de outro usuário"))
+                .andExpect(jsonPath("$[0].categoryId")
+                        .doesNotExist())
+                .andExpect(jsonPath("$[0].subCategoryId")
+                        .doesNotExist());
+    }
+
+    @Test
     void shouldDeletePurchaseAndItsInstallments() throws Exception {
         String token = getToken();
         UUID cardId = createCreditCard(token);
