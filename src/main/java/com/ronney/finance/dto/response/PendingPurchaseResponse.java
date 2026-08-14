@@ -11,6 +11,10 @@ public record PendingPurchaseResponse(
         BigDecimal totalAmount,
         Integer installmentCount,
         UUID creditCardId,
-        String creditCardName
+        String creditCardName,
+        UUID categoryId,
+        String categoryName,
+        UUID subCategoryId,
+        String subCategoryName
 ) {
 }

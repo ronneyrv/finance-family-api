@@ -1,9 +1,11 @@
 package com.ronney.finance.service.impl;
 
+import com.ronney.finance.domain.entity.Category;
 import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.FinancialAccount;
 import com.ronney.finance.domain.entity.Purchase;
+import com.ronney.finance.domain.entity.SubCategory;
 import com.ronney.finance.domain.entity.Transaction;
 import com.ronney.finance.domain.entity.User;
 import com.ronney.finance.domain.enums.TransactionKind;
@@ -15,10 +17,12 @@ import com.ronney.finance.dto.response.InvoiceInstallmentResponse;
 import com.ronney.finance.dto.response.InvoiceResponse;
 import com.ronney.finance.dto.response.PendingPurchaseResponse;
 import com.ronney.finance.exception.ResourceNotFoundException;
+import com.ronney.finance.repository.CategoryRepository;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
 import com.ronney.finance.repository.FinancialAccountRepository;
 import com.ronney.finance.repository.PurchaseRepository;
+import com.ronney.finance.repository.SubCategoryRepository;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.service.CurrentUserService;
 import com.ronney.finance.service.PurchaseService;
@@ -44,6 +48,8 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final CurrentUserService currentUserService;
     private final FinancialAccountRepository financialAccountRepository;
     private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
+    private final SubCategoryRepository subCategoryRepository;
 
     @Override
     @Transactional
@@ -65,6 +71,51 @@ public class PurchaseServiceImpl implements PurchaseService {
                         )
                 );
 
+        if (request.subCategoryId() != null && request.categoryId() == null) {
+            throw new IllegalArgumentException(
+                    "Category is required when SubCategory is provided."
+            );
+        }
+
+        Category category = null;
+
+        if (request.categoryId() != null) {
+            category = categoryRepository
+                    .findById(request.categoryId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Category not found."
+                            )
+                    );
+
+            if (!TransactionType.EXPENSE.equals(category.getType())) {
+                throw new IllegalArgumentException(
+                        "Category does not match purchase type."
+                );
+            }
+        }
+
+        SubCategory subCategory = null;
+
+        if (request.subCategoryId() != null) {
+            subCategory = subCategoryRepository
+                    .findById(request.subCategoryId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "SubCategory not found."
+                            )
+                    );
+        }
+
+        if (subCategory != null
+                && !subCategory.getCategory()
+                .getId()
+                .equals(category.getId())) {
+            throw new IllegalArgumentException(
+                    "SubCategory does not belong to Category."
+            );
+        }
+
         Purchase purchase = Purchase.builder()
                 .id(UUID.randomUUID())
                 .description(request.description())
@@ -72,6 +123,8 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .purchaseDate(request.purchaseDate())
                 .installmentCount(request.installments())
                 .creditCard(card)
+                .category(category)
+                .subCategory(subCategory)
                 .build();
 
         BigDecimal installmentAmount = request.totalAmount()
@@ -393,7 +446,19 @@ public class PurchaseServiceImpl implements PurchaseService {
                 purchase.getTotalAmount(),
                 purchase.getInstallmentCount(),
                 card.getId(),
-                card.getName()
+                card.getName(),
+                purchase.getCategory() != null
+                        ? purchase.getCategory().getId()
+                        : null,
+                purchase.getCategory() != null
+                        ? purchase.getCategory().getName()
+                        : null,
+                purchase.getSubCategory() != null
+                        ? purchase.getSubCategory().getId()
+                        : null,
+                purchase.getSubCategory() != null
+                        ? purchase.getSubCategory().getName()
+                        : null
         );
     }
 }
