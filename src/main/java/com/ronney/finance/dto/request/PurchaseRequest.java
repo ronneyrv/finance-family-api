@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 public record PurchaseRequest(
         @Schema(
@@ -36,6 +37,18 @@ public record PurchaseRequest(
                 example = "2026-09-25"
         )
         @NotNull
-        LocalDate purchaseDate
+        LocalDate purchaseDate,
+
+        @Schema(
+                description = "Category identifier",
+                example = "4d0df1d8-8b62-4c0e-bef8-7dbfb74b27f6"
+        )
+                UUID categoryId,
+
+        @Schema(
+                description = "Subcategory identifier",
+                example = "fd18d65e-87df-4a6e-aef5-d4b7fd0a2b8d"
+        )
+        UUID subCategoryId
 ) {
 }

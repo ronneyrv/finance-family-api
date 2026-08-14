@@ -37,6 +37,14 @@ public class Purchase {
     @JoinColumn(name = "credit_card_id", nullable = false)
     private CreditCard creditCard;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_category_id")
+    private SubCategory subCategory;
+
     @Builder.Default
     @OneToMany(
             mappedBy = "purchase",
