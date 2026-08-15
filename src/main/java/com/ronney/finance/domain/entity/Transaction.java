@@ -31,7 +31,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", nullable = false)
+    @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
 
     @Column(nullable = false)
@@ -44,6 +44,9 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_kind", nullable = false)
     private TransactionKind transactionKind;
+
+    @Column(name = "transfer_id")
+    private UUID transferId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")

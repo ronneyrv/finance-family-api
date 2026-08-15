@@ -30,6 +30,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             UUID userId
     );
 
+    List<Transaction> findByTransferIdAndUserId(
+            UUID transferId,
+            UUID userId
+    );
+
     Page<Transaction> findByUserIdAndTransactionDateBetween(
             UUID userId,
             LocalDate startDate,
