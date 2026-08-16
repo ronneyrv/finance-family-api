@@ -11,7 +11,7 @@ public interface DashboardService {
 
     DashboardFiltersResponse getFilters();
 
-    List<CategoryExpenseResponse> getExpensesByCategory();
+    List<CategoryExpenseResponse> getExpensesByCategory(Integer year);
 
     List<MonthlySummaryResponse> getMonthlySummary( Integer year );
 

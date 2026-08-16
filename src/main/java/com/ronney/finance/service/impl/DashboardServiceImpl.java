@@ -13,6 +13,7 @@ import com.ronney.finance.dto.response.*;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
 import com.ronney.finance.repository.FinancialAccountRepository;
+import com.ronney.finance.repository.PurchaseRepository;
 import com.ronney.finance.repository.RecurringTransactionRepository;
 import com.ronney.finance.repository.TransactionRepository;
 import com.ronney.finance.repository.projection.MonthlySummaryProjection;
@@ -50,6 +51,7 @@ public class DashboardServiceImpl implements DashboardService {
             BigDecimal.valueOf(60);
 
     private final TransactionRepository transactionRepository;
+    private final PurchaseRepository purchaseRepository;
     private final RecurringTransactionRepository recurringTransactionRepository;
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInstallmentRepository installmentRepository;
@@ -462,17 +464,40 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public List<CategoryExpenseResponse> getExpensesByCategory() {
+    public List<CategoryExpenseResponse> getExpensesByCategory(Integer year) {
         User user = currentUserService.getAuthenticatedUser();
 
-        return transactionRepository.findExpensesByCategory(
-                user.getId()
-        )
+        Map<String, BigDecimal> expensesByCategory = new HashMap<>();
+
+        transactionRepository.findExpensesByCategory(
+                user.getId(),
+                year
+        ).forEach(item ->
+                expensesByCategory.merge(
+                        item.getCategory(),
+                        item.getAmount(),
+                        BigDecimal::add
+                )
+        );
+
+        purchaseRepository.findExpensesByCategoryAndYear(
+                user.getId(),
+                year
+        ).forEach(item ->
+                expensesByCategory.merge(
+                        item.getCategory(),
+                        item.getAmount(),
+                        BigDecimal::add
+                )
+        );
+
+        return expensesByCategory.entrySet()
                 .stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
                 .map(
                         item -> new CategoryExpenseResponse(
-                                item.getCategory(),
-                                item.getAmount()
+                                item.getKey(),
+                                item.getValue()
                         )
                 )
                 .toList();

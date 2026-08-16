@@ -103,8 +103,10 @@ public class DashboardController {
             )
     })
     @GetMapping("/categories")
-    public List<CategoryExpenseResponse> getExpensesByCategory() {
-        return dashboardService.getExpensesByCategory();
+    public List<CategoryExpenseResponse> getExpensesByCategory(
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getExpensesByCategory(year);
     }
 
     @Operation(

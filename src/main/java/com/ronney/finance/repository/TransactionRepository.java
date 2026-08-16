@@ -64,11 +64,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         WHERE t.user.id = :userId
         AND t.type = 'EXPENSE'
         AND t.transactionKind = 'REGULAR'
+        AND YEAR(t.transactionDate) = :year
         GROUP BY c.name
         ORDER BY amount DESC
         """)
     List<CategoryExpenseProjection> findExpensesByCategory(
-            @Param("userId") UUID userId
+            @Param("userId") UUID userId,
+            @Param("year") Integer year
     );
 
     @Query("""
