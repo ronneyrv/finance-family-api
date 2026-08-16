@@ -370,14 +370,80 @@ class DashboardControllerIT extends BaseIntegrationTest {
     void shouldReturnExpensesByCategory()
             throws Exception {
         String token = getToken();
+
         mockMvc.perform(
                         get("/api/v1/dashboard/categories")
+                                .param("year", "2026")
                                 .header(
                                         "Authorization",
                                         "Bearer " + token
                                 )
                 )
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldIncludeCreditCardPurchaseTotalInAnnualExpensesByCategory()
+            throws Exception {
+        String token = getToken();
+
+        createTransaction(
+                token,
+                300,
+                "EXPENSE",
+                "PIX"
+        );
+
+        UUID cardId = createCreditCard(token);
+
+        Category category =
+                categoryRepository
+                        .findByName("Alimentação")
+                        .orElseThrow();
+
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName("Restaurante")
+                        .orElseThrow();
+
+        String body = """
+        {
+            "description":"Compra parcelada",
+            "totalAmount":1200,
+            "installments":12,
+            "purchaseDate":"2026-08-10",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Alimentação')].amount")
+                                .value(1500.00)
+                );
     }
 
     @Test
