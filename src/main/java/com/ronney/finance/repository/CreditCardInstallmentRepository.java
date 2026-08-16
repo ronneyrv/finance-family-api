@@ -70,4 +70,23 @@ public interface CreditCardInstallmentRepository
             @Param("invoiceMonth") Integer invoiceMonth,
             @Param("invoiceYear") Integer invoiceYear
     );
+
+    @Query("""
+    SELECT
+        c.name as category,
+        COALESCE(SUM(i.amount), 0) as amount
+    FROM CreditCardInstallment i
+    JOIN i.purchase p
+    JOIN p.category c
+    WHERE p.creditCard.user.id = :userId
+    AND i.invoiceMonth = :month
+    AND i.invoiceYear = :year
+    GROUP BY c.name
+    ORDER BY amount DESC
+    """)
+    List<CategoryExpenseProjection> findMonthlyExpensesByCategory(
+            @Param("userId") UUID userId,
+            @Param("month") Integer month,
+            @Param("year") Integer year
+    );
 }

@@ -383,6 +383,273 @@ class DashboardControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldReturnMonthlyExpensesByCategory()
+            throws Exception {
+        String token = getToken();
+
+        createTransaction(
+                token,
+                300,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 8, 5)
+        );
+
+        UUID cardId = createCreditCard(token);
+
+        Category category =
+                categoryRepository
+                        .findByName("Alimentação")
+                        .orElseThrow();
+
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName("Restaurante")
+                        .orElseThrow();
+
+        String body = """
+        {
+            "description":"Compra parcelada",
+            "totalAmount":1200,
+            "installments":12,
+            "purchaseDate":"2026-08-10",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/monthly")
+                                .param("month", "8")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Alimentação')].amount")
+                                .value(400.00)
+                );
+    }
+
+    @Test
+    void shouldUseOnlyInstallmentAmountForSelectedMonth()
+            throws Exception {
+        String token = getToken();
+
+        UUID cardId = createCreditCard(token);
+
+        Category category =
+                categoryRepository
+                        .findByName("Alimentação")
+                        .orElseThrow();
+
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName("Restaurante")
+                        .orElseThrow();
+
+        String body = """
+        {
+            "description":"Compra parcelada",
+            "totalAmount":1200,
+            "installments":12,
+            "purchaseDate":"2026-08-10",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/monthly")
+                                .param("month", "8")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Alimentação')].amount")
+                                .value(100.00)
+                );
+    }
+
+    @Test
+    void shouldReturnMonthlyExpensesOnlyForAuthenticatedUser()
+            throws Exception {
+        String userOneToken = getToken(
+                "user.one@example.test",
+                "test-password"
+        );
+
+        String userTwoToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        createTransaction(
+                userOneToken,
+                300,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 8, 5)
+        );
+
+        createTransaction(
+                userTwoToken,
+                500,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 8, 5)
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/monthly")
+                                .param("month", "8")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userOneToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Alimentação')].amount")
+                                .value(300.00)
+                );
+    }
+
+    @Test
+    void shouldReturnMonthlyCreditCardExpensesOnlyForAuthenticatedUser()
+            throws Exception {
+        String userOneToken = getToken(
+                "user.one@example.test",
+                "test-password"
+        );
+
+        String userTwoToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        UUID userOneCardId = createCreditCard(userOneToken);
+        UUID userTwoCardId = createCreditCard(userTwoToken);
+
+        Category category =
+                categoryRepository
+                        .findByName("Alimentação")
+                        .orElseThrow();
+
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName("Restaurante")
+                        .orElseThrow();
+
+        String userOneBody = """
+        {
+            "description":"Compra usuário 1",
+            "totalAmount":1200,
+            "installments":12,
+            "purchaseDate":"2026-08-10",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        String userTwoBody = """
+        {
+            "description":"Compra usuário 2",
+            "totalAmount":2400,
+            "installments":12,
+            "purchaseDate":"2026-08-10",
+            "categoryId":"%s",
+            "subCategoryId":"%s"
+        }
+        """.formatted(
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post(
+                                "/api/v1/credit-cards/{id}/purchases",
+                                userOneCardId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userOneToken
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(userOneBody)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        post(
+                                "/api/v1/credit-cards/{id}/purchases",
+                                userTwoCardId
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userTwoToken
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(userTwoBody)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/monthly")
+                                .param("month", "8")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + userOneToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Alimentação')].amount")
+                                .value(100.00)
+                );
+    }
+
+    @Test
     void shouldIncludeCreditCardPurchaseTotalInAnnualExpensesByCategory()
             throws Exception {
         String token = getToken();

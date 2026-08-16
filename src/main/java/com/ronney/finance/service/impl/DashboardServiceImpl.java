@@ -504,6 +504,54 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
+    public List<CategoryExpenseResponse> getMonthlyExpensesByCategory(
+            Integer month,
+            Integer year
+    ) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        Map<String, BigDecimal> expensesByCategory = new HashMap<>();
+
+        transactionRepository.findMonthlyExpensesByCategory(
+                user.getId(),
+                month,
+                year
+        ).forEach(item ->
+                expensesByCategory.merge(
+                        item.getCategory(),
+                        item.getAmount(),
+                        BigDecimal::add
+                )
+        );
+
+        installmentRepository.findMonthlyExpensesByCategory(
+                user.getId(),
+                month,
+                year
+        ).forEach(item ->
+                expensesByCategory.merge(
+                        item.getCategory(),
+                        item.getAmount(),
+                        BigDecimal::add
+                )
+        );
+
+        return expensesByCategory.entrySet()
+                .stream()
+                .sorted(
+                        Map.Entry.<String, BigDecimal>comparingByValue()
+                                .reversed()
+                )
+                .map(
+                        item -> new CategoryExpenseResponse(
+                                item.getKey(),
+                                item.getValue()
+                        )
+                )
+                .toList();
+    }
+
+    @Override
     public List<MonthlySummaryResponse> getMonthlySummary(
             Integer year
     ) {

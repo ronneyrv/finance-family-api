@@ -110,6 +110,34 @@ public class DashboardController {
     }
 
     @Operation(
+            summary = "Get monthly expenses by category",
+            description = """
+            Returns the total amount of expenses grouped by category
+            for the authenticated user in the selected month and year.
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Monthly category expense summary generated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/categories/monthly")
+    public List<CategoryExpenseResponse> getMonthlyExpensesByCategory(
+            @RequestParam Integer month,
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getMonthlyExpensesByCategory(
+                month,
+                year
+        );
+    }
+
+    @Operation(
             summary = "Get monthly financial summary",
             description = """
                 Returns the monthly evolution of income,
