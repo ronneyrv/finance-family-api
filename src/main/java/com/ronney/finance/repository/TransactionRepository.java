@@ -74,6 +74,26 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     );
 
     @Query("""
+    SELECT
+        c.name as category,
+        COALESCE(SUM(t.amount), 0) as amount
+    FROM Transaction t
+    JOIN t.category c
+    WHERE t.user.id = :userId
+    AND t.type = 'EXPENSE'
+    AND t.transactionKind = 'REGULAR'
+    AND MONTH(t.transactionDate) = :month
+    AND YEAR(t.transactionDate) = :year
+    GROUP BY c.name
+    ORDER BY amount DESC
+    """)
+    List<CategoryExpenseProjection> findMonthlyExpensesByCategory(
+            @Param("userId") UUID userId,
+            @Param("month") Integer month,
+            @Param("year") Integer year
+    );
+
+    @Query("""
         SELECT
             MONTH(t.transactionDate) as month,
             COALESCE(
