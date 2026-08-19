@@ -16,7 +16,9 @@ public interface TransactionService {
     Page<TransactionResponse> findAll(
             Pageable pageable,
             LocalDate startDate,
-            LocalDate endDate
+            LocalDate endDate,
+            UUID categoryId,
+            String description
     );
 
     TransactionResponse findById(

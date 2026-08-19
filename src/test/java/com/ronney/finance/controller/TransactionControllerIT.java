@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,7 +44,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + token
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isCreated())
@@ -95,7 +96,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                                 "Bearer " + token
                                         )
                                         .contentType(
-                                                MediaType.APPLICATION_JSON
+                                                APPLICATION_JSON
                                         )
                                         .content(body)
                         )
@@ -105,6 +106,60 @@ class TransactionControllerIT extends BaseIntegrationTest {
                         .getContentAsString();
 
         return UUID.fromString(objectMapper
+                        .readTree(response)
+                        .get("id")
+                        .asText()
+        );
+    }
+
+    private UUID createTransactionWithDate(
+            String token,
+            String transactionDate
+    ) throws Exception {
+        Category category = categoryRepository
+                .findByName("Receita")
+                .orElseThrow();
+
+        SubCategory subCategory = subCategoryRepository
+                .findByName("Salário")
+                .orElseThrow();
+
+        UUID accountId = createFinancialAccount(token);
+
+        String body = """
+            {
+                "description":"Salário Junho",
+                "amount":10000,
+                "transactionDate":"%s",
+                "type":"INCOME",
+                "paymentMethod":"BANK_TRANSFER",
+                "accountId":"%s",
+                "categoryId":"%s",
+                "subCategoryId":"%s"
+            }
+            """.formatted(
+                transactionDate,
+                accountId,
+                category.getId(),
+                subCategory.getId()
+        );
+
+        String response = mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(
+                objectMapper
                         .readTree(response)
                         .get("id")
                         .asText()
@@ -148,6 +203,144 @@ class TransactionControllerIT extends BaseIntegrationTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void shouldFilterTransactionsByDateRange() throws Exception {
+        String token = getToken();
+
+        createTransactionWithDate(token, "2026-06-10");
+        createTransactionWithDate(token, "2026-06-23");
+        createTransactionWithDate(token, "2026-07-05");
+
+        mockMvc.perform(
+                        get("/api/v1/transactions")
+                                .param("startDate", "2026-06-01")
+                                .param("endDate", "2026-06-30")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(
+                        jsonPath("$.content[0].transactionDate")
+                                .value("2026-06-23")
+                )
+                .andExpect(
+                        jsonPath("$.content[1].transactionDate")
+                                .value("2026-06-10")
+                );
+    }
+
+    @Test
+    void shouldFilterTransactionsByCategory() throws Exception {
+        String token = getToken();
+
+        Category category = createExpenseCategory();
+
+        UUID accountId = createFinancialAccount(token);
+
+        String body = """
+            {
+                "description":"Despesa filtrada",
+                "amount":150.00,
+                "transactionDate":"2026-06-23",
+                "type":"EXPENSE",
+                "paymentMethod":"PIX",
+                "accountId":"%s",
+                "categoryId":"%s",
+                "subCategoryId":null
+            }
+            """.formatted(
+                accountId,
+                category.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/transactions")
+                                .param(
+                                        "categoryId",
+                                        category.getId().toString()
+                                )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(
+                        jsonPath("$.content[0].categoryId")
+                                .value(category.getId().toString())
+                )
+                .andExpect(
+                        jsonPath("$.content[0].description")
+                                .value("Despesa filtrada")
+                );
+    }
+
+    @Test
+    void shouldFilterTransactionsByDescription() throws Exception {
+        String token = getToken();
+
+        createTransactionWithDate(token, "2026-06-10");
+
+        mockMvc.perform(
+                        get("/api/v1/transactions")
+                                .param("description", "salário")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(
+                        jsonPath("$.content[0].description")
+                                .value("Salário Junho")
+                );
+    }
+
+    @Test
+    void shouldFilterTransactionsByDateRangeAndDescription() throws Exception {
+        String token = getToken();
+
+        createTransactionWithDate(token, "2026-06-10");
+        createTransactionWithDate(token, "2026-07-10");
+
+        mockMvc.perform(
+                        get("/api/v1/transactions")
+                                .param("startDate", "2026-06-01")
+                                .param("endDate", "2026-06-30")
+                                .param("description", "salário")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(
+                        jsonPath("$.content[0].transactionDate")
+                                .value("2026-06-10")
+                )
+                .andExpect(
+                        jsonPath("$.content[0].description")
+                                .value("Salário Junho")
+                );
     }
 
     @Test
@@ -216,7 +409,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + token
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isCreated())
@@ -253,7 +446,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + token
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isBadRequest())
@@ -301,7 +494,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + token
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isBadRequest())
@@ -355,7 +548,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + secondUserToken
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isNotFound())
@@ -414,7 +607,7 @@ class TransactionControllerIT extends BaseIntegrationTest {
                                         "Authorization",
                                         "Bearer " + firstUserToken
                                 )
-                                .contentType(MediaType.APPLICATION_JSON)
+                                .contentType(APPLICATION_JSON)
                                 .content(body)
                 )
                 .andExpect(status().isNotFound())
