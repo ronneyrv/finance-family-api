@@ -98,9 +98,29 @@ public class TransactionController {
                     description = "Filter transactions until this date",
                     example = "2026-12-31"
             )
-            LocalDate endDate
+            LocalDate endDate,
+
+            @RequestParam(required = false)
+            @Parameter(
+                    description = "Filter transactions by category",
+                    example = "550e8400-e29b-41d4-a716-446655440000"
+            )
+            UUID categoryId,
+
+            @RequestParam(required = false)
+            @Parameter(
+                    description = "Filter transactions by description text",
+                    example = "mercado"
+            )
+            String description
     ) {
-        return transactionService.findAll(pageable, startDate, endDate);
+        return transactionService.findAll(
+                pageable,
+                startDate,
+                endDate,
+                categoryId,
+                description
+        );
     }
 
     @Operation(

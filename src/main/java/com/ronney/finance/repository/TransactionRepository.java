@@ -43,6 +43,37 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     );
 
     @Query("""
+    SELECT t
+    FROM Transaction t
+    WHERE t.user.id = :userId
+    AND (
+        CAST(:startDate AS date) IS NULL
+        OR t.transactionDate >= :startDate
+    )
+    AND (
+        CAST(:endDate AS date) IS NULL
+        OR t.transactionDate <= :endDate
+    )
+    AND (
+        CAST(:categoryId AS uuid) IS NULL
+        OR t.category.id = :categoryId
+    )
+    AND (
+        :description IS NULL
+        OR LOWER(t.description) LIKE
+            LOWER(CONCAT('%', CAST(:description AS string), '%'))
+    )
+    """)
+    Page<Transaction> findByFilters(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("categoryId") UUID categoryId,
+            @Param("description") String description,
+            Pageable pageable
+    );
+
+    @Query("""
     SELECT COALESCE(SUM(t.amount), 0)
     FROM Transaction t
     WHERE t.user.id = :userId

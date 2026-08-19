@@ -115,25 +115,21 @@ public class TransactionServiceImpl implements TransactionService {
     public Page<TransactionResponse> findAll(
             Pageable pageable,
             LocalDate startDate,
-            LocalDate endDate
+            LocalDate endDate,
+            UUID categoryId,
+            String description
     ) {
         User user = currentUserService.getAuthenticatedUser();
 
-        Page<Transaction> transactions;
-
-        if (startDate != null && endDate != null) {
-            transactions = transactionRepository.findByUserIdAndTransactionDateBetween(
-                    user.getId(),
-                    startDate,
-                    endDate,
-                    pageable
-            );
-        } else {
-            transactions = transactionRepository.findByUserId(
-                    user.getId(),
-                    pageable
-            );
-        }
+        Page<Transaction> transactions =
+                transactionRepository.findByFilters(
+                        user.getId(),
+                        startDate,
+                        endDate,
+                        categoryId,
+                        description,
+                        pageable
+                );
         return transactions.map(this::toResponse);
     }
 
