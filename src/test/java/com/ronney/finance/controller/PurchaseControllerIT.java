@@ -26,14 +26,22 @@ class PurchaseControllerIT extends BaseIntegrationTest {
     private SubCategoryRepository subCategoryRepository;
 
     private UUID createCreditCard(String token) throws Exception {
+        return createCreditCard(token, 20, 28);
+    }
+
+    private UUID createCreditCard(
+            String token,
+            int closingDay,
+            int dueDay
+    ) throws Exception {
         String body = """
                 {
                     "name":"Nubank",
                     "creditLimit":10000,
-                    "closingDay":20,
-                    "dueDay":28
+                    "closingDay":%d,
+                    "dueDay":%d
                 }
-                """;
+                """.formatted(closingDay, dueDay);
 
         String response = mockMvc.perform(
                 post("/api/v1/credit-cards")
@@ -214,6 +222,46 @@ class PurchaseControllerIT extends BaseIntegrationTest {
                         .value(false))
                 .andExpect(jsonPath("$.installments[0].paidAt")
                         .doesNotExist());
+    }
+
+    @Test
+    void shouldCalculateInvoiceDueDateInFollowingMonth() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token, 30, 5);
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/{id}/invoice", cardId)
+                                .param("month", "8")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.closingDay").value(30))
+                .andExpect(jsonPath("$.dueDay").value(5))
+                .andExpect(jsonPath("$.dueDate").value("2026-09-05"));
+    }
+
+    @Test
+    void shouldCalculateInvoiceDueDateInFollowingYear() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token, 30, 5);
+
+        mockMvc.perform(
+                        get("/api/v1/credit-cards/{id}/invoice", cardId)
+                                .param("month", "12")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.closingDay").value(30))
+                .andExpect(jsonPath("$.dueDay").value(5))
+                .andExpect(jsonPath("$.dueDate").value("2027-01-05"));
     }
 
     @Test

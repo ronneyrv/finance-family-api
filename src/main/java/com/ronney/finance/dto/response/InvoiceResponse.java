@@ -3,6 +3,7 @@ package com.ronney.finance.dto.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public record InvoiceResponse(
@@ -41,6 +42,13 @@ public record InvoiceResponse(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         Integer year,
+
+        @Schema(
+                description = "Invoice due date",
+                example = "2026-09-05",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        LocalDate dueDate,
 
         @Schema(
                 description = "Total invoice amount",
