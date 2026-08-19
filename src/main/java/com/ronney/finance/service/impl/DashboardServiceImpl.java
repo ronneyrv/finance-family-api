@@ -958,10 +958,20 @@ public class DashboardServiceImpl implements DashboardService {
                         periodEnd
                 );
 
+        List<CreditCardInstallment> installments =
+                installmentRepository.findByHouseholdInvoice(
+                        householdId,
+                        referenceDate.getMonthValue(),
+                        referenceDate.getYear()
+                );
+
         BigDecimal unpaidCreditCardInstallments =
-                installmentRepository
-                        .sumUnpaidInstallmentsByHousehold(
-                                householdId
+                installments.stream()
+                        .filter(installment -> !installment.getPaid())
+                        .map(CreditCardInstallment::getAmount)
+                        .reduce(
+                                BigDecimal.ZERO,
+                                BigDecimal::add
                         );
 
         return toIncomeCommitmentResponse(
