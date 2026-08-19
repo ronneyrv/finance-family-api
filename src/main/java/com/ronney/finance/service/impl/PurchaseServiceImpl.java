@@ -220,6 +220,12 @@ public class PurchaseServiceImpl implements PurchaseService {
                     card.getDueDay(),
                     month,
                     year,
+                    calculateInvoiceDueDate(
+                            month,
+                            year,
+                            card.getClosingDay(),
+                            card.getDueDay()
+                    ),
                     BigDecimal.ZERO,
                     calculateAvailableLimit(
                             creditCardId,
@@ -261,6 +267,12 @@ public class PurchaseServiceImpl implements PurchaseService {
                 card.getDueDay(),
                 month,
                 year,
+                calculateInvoiceDueDate(
+                        month,
+                        year,
+                        card.getClosingDay(),
+                        card.getDueDay()
+                ),
                 total,
                 availableLimit,
                 items
@@ -532,5 +544,27 @@ public class PurchaseServiceImpl implements PurchaseService {
                         ? purchase.getSubCategory().getName()
                         : null
         );
+    }
+
+    private LocalDate calculateInvoiceDueDate(
+            Integer invoiceMonth,
+            Integer invoiceYear,
+            Integer closingDay,
+            Integer dueDay
+    ) {
+        LocalDate invoiceDate = LocalDate.of(
+                invoiceYear,
+                invoiceMonth,
+                1
+        );
+
+        if (dueDay < closingDay) {
+            invoiceDate = invoiceDate.plusMonths(1);
+        }
+
+        int lastDayOfMonth = invoiceDate.lengthOfMonth();
+        int effectiveDueDay = Math.min(dueDay, lastDayOfMonth);
+
+        return invoiceDate.withDayOfMonth(effectiveDueDay);
     }
 }
