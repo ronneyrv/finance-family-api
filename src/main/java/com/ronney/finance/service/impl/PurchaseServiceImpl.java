@@ -247,6 +247,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .map(i ->
                         new InvoiceInstallmentResponse(
                                 i.getPurchase().getDescription(),
+                                i.getPurchase().getPurchaseDate(),
                                 i.getInstallmentNumber() + "/" + i.getPurchase().getInstallmentCount(),
                                 i.getAmount(),
                                 i.getPaid(),

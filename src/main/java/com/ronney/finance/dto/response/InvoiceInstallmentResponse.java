@@ -13,6 +13,12 @@ public record InvoiceInstallmentResponse(
         String description,
 
         @Schema(
+                description = "Purchase date",
+                example = "2026-06-23"
+        )
+        LocalDate purchaseDate,
+
+        @Schema(
                 description = "Installment",
                 example = "3/12"
         )

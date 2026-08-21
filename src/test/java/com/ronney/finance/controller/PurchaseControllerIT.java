@@ -214,6 +214,8 @@ class PurchaseControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.installments.length()").value(1))
                 .andExpect(jsonPath("$.installments[0].description")
                         .value("Notebook Dell"))
+                .andExpect(jsonPath("$.installments[0].purchaseDate")
+                        .value("2026-09-25"))
                 .andExpect(jsonPath("$.installments[0].installment")
                         .value("1/12"))
                 .andExpect(jsonPath("$.installments[0].amount")
