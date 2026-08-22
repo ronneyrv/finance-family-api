@@ -29,8 +29,6 @@ public interface DashboardService {
 
     List<MonthlyProjectionResponse> getProjection( Integer year );
 
-    List<CashFlowResponse> getCashFlow( Integer year );
-
     List<CumulativeResultResponse> getCumulativeResult( Integer year );
 
     List<CumulativeResultResponse> getMyCumulativeResult(Integer year);

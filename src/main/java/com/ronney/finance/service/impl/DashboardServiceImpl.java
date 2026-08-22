@@ -107,60 +107,6 @@ public class DashboardServiceImpl implements DashboardService {
                 );
     }
 
-    private CashFlowResponse toCashFlowResponse(
-            MonthlySummaryProjection projection
-    ) {
-
-        return new CashFlowResponse(
-                Month.of(projection.getMonth()),
-                projection.getIncome(),
-                projection.getExpense()
-        );
-    }
-
-    private List<CashFlowResponse> completeMonthlySeries(
-            Map<Month, MonthlySummaryProjection> monthlySummary
-    ) {
-
-        return Stream.of(Month.values())
-                .map(month -> {
-
-                    MonthlySummaryProjection projection =
-                            monthlySummary.get(month);
-
-                    if (projection == null) {
-                        return new CashFlowResponse(
-                                month,
-                                BigDecimal.ZERO,
-                                BigDecimal.ZERO
-                        );
-                    }
-
-                    return toCashFlowResponse(projection);
-                })
-                .toList();
-    }
-
-    private Map<Month, CashFlowResponse> getMonthlyCashFlow(
-            UUID householdId,
-            Integer year
-    ) {
-
-        return transactionRepository
-                .findHouseholdMonthlySummary(
-                        householdId,
-                        year
-                )
-                .stream()
-                .map(this::toCashFlowResponse)
-                .collect(
-                        Collectors.toMap(
-                                CashFlowResponse::month,
-                                Function.identity()
-                        )
-                );
-    }
-
     private Map<Month, MonthlySummaryProjection> getHouseholdMonthlySummary(
             UUID householdId,
             Integer year
@@ -910,23 +856,6 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return response;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<CashFlowResponse> getCashFlow(
-            Integer year
-    ) {
-
-        User user = currentUserService.getAuthenticatedUser();
-
-        Map<Month, MonthlySummaryProjection> monthlySummary =
-                getHouseholdMonthlySummary(
-                        user.getHousehold().getId(),
-                        year
-                );
-
-        return completeMonthlySeries(monthlySummary);
     }
 
     @Override
