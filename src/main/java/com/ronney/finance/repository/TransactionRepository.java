@@ -106,6 +106,44 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @Query("""
     SELECT
+        sc.name as subCategory,
+        COALESCE(SUM(t.amount), 0) as amount
+    FROM Transaction t
+    JOIN t.subCategory sc
+    WHERE t.user.id = :userId
+    AND t.type = 'INCOME'
+    AND t.transactionKind = 'REGULAR'
+    AND YEAR(t.transactionDate) = :year
+    GROUP BY sc.name
+    ORDER BY amount DESC
+    """)
+    List<SubCategoryAmountProjection> findIncomeByCategory(
+            @Param("userId") UUID userId,
+            @Param("year") Integer year
+    );
+
+    @Query("""
+    SELECT
+        sc.name as subCategory,
+        COALESCE(SUM(t.amount), 0) as amount
+    FROM Transaction t
+    JOIN t.subCategory sc
+    WHERE t.user.id = :userId
+    AND t.type = 'INCOME'
+    AND t.transactionKind = 'REGULAR'
+    AND MONTH(t.transactionDate) = :month
+    AND YEAR(t.transactionDate) = :year
+    GROUP BY sc.name
+    ORDER BY amount DESC
+    """)
+    List<SubCategoryAmountProjection> findMonthlyIncomeByCategory(
+            @Param("userId") UUID userId,
+            @Param("month") Integer month,
+            @Param("year") Integer year
+    );
+
+    @Query("""
+    SELECT
         c.name as category,
         COALESCE(SUM(t.amount), 0) as amount
     FROM Transaction t

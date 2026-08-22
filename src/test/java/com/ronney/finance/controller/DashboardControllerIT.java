@@ -383,6 +383,51 @@ class DashboardControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldReturnIncomeByCategory()
+            throws Exception {
+        String token = getToken();
+
+        createIncome(token, 10000);
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/income")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Salário')].amount")
+                                .value(10000.00)
+                );
+    }
+
+    @Test
+    void shouldReturnMonthlyIncomeByCategory()
+            throws Exception {
+        String token = getToken();
+
+        createIncome(token, 10000);
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/categories/income/monthly")
+                                .param("month", "7")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$[?(@.category == 'Salário')].amount")
+                                .value(10000.00)
+                );
+    }
+
+    @Test
     void shouldReturnMonthlyExpensesByCategory()
             throws Exception {
         String token = getToken();
