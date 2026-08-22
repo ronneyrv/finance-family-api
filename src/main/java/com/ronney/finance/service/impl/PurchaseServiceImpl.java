@@ -137,7 +137,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         LocalDate invoiceDate = request.purchaseDate();
 
-        if (request.purchaseDate().getDayOfMonth() > card.getClosingDay()) {
+        if (request.purchaseDate().getDayOfMonth() >= card.getClosingDay()) {
             invoiceDate = invoiceDate.plusMonths(1);
         }
 
