@@ -110,6 +110,58 @@ public class DashboardController {
     }
 
     @Operation(
+            summary = "Get income by category",
+            description = """
+        Returns the total amount of income grouped by category
+        for the authenticated user.
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Category income summary generated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/categories/income")
+    public List<CategoryExpenseResponse> getIncomeByCategory(
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getIncomeByCategory(year);
+    }
+
+    @Operation(
+            summary = "Get monthly income by category",
+            description = """
+        Returns the total amount of income grouped by category
+        for the authenticated user in the selected month and year.
+        """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Monthly category income summary generated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized"
+            )
+    })
+    @GetMapping("/categories/income/monthly")
+    public List<CategoryExpenseResponse> getMonthlyIncomeByCategory(
+            @RequestParam Integer month,
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getMonthlyIncomeByCategory(
+                month,
+                year
+        );
+    }
+
+    @Operation(
             summary = "Get monthly expenses by category",
             description = """
             Returns the total amount of expenses grouped by category

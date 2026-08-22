@@ -504,6 +504,46 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
+    public List<CategoryExpenseResponse> getIncomeByCategory(Integer year) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        return transactionRepository.findIncomeByCategory(
+                        user.getId(),
+                        year
+                )
+                .stream()
+                .map(item ->
+                        new CategoryExpenseResponse(
+                                item.getSubCategory(),
+                                item.getAmount()
+                        )
+                )
+                .toList();
+    }
+
+    @Override
+    public List<CategoryExpenseResponse> getMonthlyIncomeByCategory(
+            Integer month,
+            Integer year
+    ) {
+        User user = currentUserService.getAuthenticatedUser();
+
+        return transactionRepository.findMonthlyIncomeByCategory(
+                        user.getId(),
+                        month,
+                        year
+                )
+                .stream()
+                .map(item ->
+                        new CategoryExpenseResponse(
+                                item.getSubCategory(),
+                                item.getAmount()
+                        )
+                )
+                .toList();
+    }
+
+    @Override
     public List<CategoryExpenseResponse> getMonthlyExpensesByCategory(
             Integer month,
             Integer year

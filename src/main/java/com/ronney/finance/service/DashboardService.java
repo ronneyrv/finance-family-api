@@ -13,6 +13,13 @@ public interface DashboardService {
 
     List<CategoryExpenseResponse> getExpensesByCategory(Integer year);
 
+    List<CategoryExpenseResponse> getIncomeByCategory(Integer year);
+
+    List<CategoryExpenseResponse> getMonthlyIncomeByCategory(
+            Integer month,
+            Integer year
+    );
+
     List<CategoryExpenseResponse> getMonthlyExpensesByCategory(
             Integer month,
             Integer year
