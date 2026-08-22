@@ -189,6 +189,34 @@ class PurchaseControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldAssignPurchaseOnClosingDayToFollowingInvoice() throws Exception {
+        String token = getToken();
+        UUID cardId = createCreditCard(token, 14, 20);
+
+        String body = """
+        {
+            "description":"Compra no melhor dia",
+            "totalAmount":100.00,
+            "installments":1,
+            "purchaseDate":"2026-07-14"
+        }
+        """;
+
+        mockMvc.perform(
+                        post("/api/v1/credit-cards/{id}/purchases", cardId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].invoiceMonth").value(8))
+                .andExpect(jsonPath("$[0].invoiceYear").value(2026));
+    }
+
+    @Test
     void shouldGetInvoiceWithPurchaseData() throws Exception {
 
         String token = getToken();
