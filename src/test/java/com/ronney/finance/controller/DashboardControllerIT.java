@@ -344,17 +344,71 @@ class DashboardControllerIT extends BaseIntegrationTest {
                         .orElseThrow();
 
         String body = """
-    {
-        "description":"Transaction test",
-        "amount":%d,
-        "transactionDate":"%s",
-        "type":"%s",
-        "paymentMethod":"%s",
-        "accountId":"%s",
-        "categoryId":"%s",
-        "subCategoryId":"%s"
+            {
+                "description":"Transaction test",
+                "amount":%d,
+                "transactionDate":"%s",
+                "type":"%s",
+                "paymentMethod":"%s",
+                "accountId":"%s",
+                "categoryId":"%s",
+                "subCategoryId":"%s"
+            }
+            """.formatted(
+                amount,
+                transactionDate,
+                type,
+                paymentMethod,
+                accountId,
+                category.getId(),
+                subCategory.getId()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/transactions")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated());
     }
-    """.formatted(
+
+    private void createTransaction(
+            String token,
+            int amount,
+            String type,
+            String paymentMethod,
+            LocalDate transactionDate,
+            UUID accountId
+    ) throws Exception {
+
+        boolean income = type.equals("INCOME");
+
+        Category category =
+                categoryRepository
+                        .findByName(income ? "Receita" : "Alimentação")
+                        .orElseThrow();
+
+        SubCategory subCategory =
+                subCategoryRepository
+                        .findByName(income ? "Salário" : "Supermercado")
+                        .orElseThrow();
+
+        String body = """
+            {
+                "description":"Transaction test",
+                "amount":%d,
+                "transactionDate":"%s",
+                "type":"%s",
+                "paymentMethod":"%s",
+                "accountId":"%s",
+                "categoryId":"%s",
+                "subCategoryId":"%s"
+            }
+            """.formatted(
                 amount,
                 transactionDate,
                 type,
@@ -378,13 +432,13 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
     private UUID createCreditCard(String token) throws Exception {
         String body = """
-                {
-                    "name":"Nubank",
-                    "creditLimit":10000,
-                    "closingDay":20,
-                    "dueDay":28
-                }
-                """;
+            {
+                "name":"Nubank",
+                "creditLimit":10000,
+                "closingDay":20,
+                "dueDay":28
+            }
+            """;
 
         String response = mockMvc.perform(
                         post("/api/v1/credit-cards")
@@ -414,13 +468,13 @@ class DashboardControllerIT extends BaseIntegrationTest {
     ) throws Exception {
 
         String body = """
-    {
-        "description":"Notebook",
-        "totalAmount":1200,
-        "installments":1,
-        "purchaseDate":"%s"
-    }
-    """.formatted(purchaseDate);
+            {
+                "description":"Notebook",
+                "totalAmount":1200,
+                "installments":1,
+                "purchaseDate":"%s"
+            }
+            """.formatted(purchaseDate);
 
         mockMvc.perform(
                         post("/api/v1/credit-cards/{id}/purchases", cardId)
@@ -458,11 +512,19 @@ class DashboardControllerIT extends BaseIntegrationTest {
     @Test
     void shouldReturnInvestmentBalanceSeparately()
             throws Exception {
-        String token = getToken();
 
-        createFinancialAccount(token);
+        String userOneToken = getToken(
+                "user.one@example.test",
+                "test-password"
+        );
 
-        createInvestmentAccount(token);
+        String userTwoToken = getToken(
+                "user.two@example.test",
+                "test-password"
+        );
+
+        createInvestmentAccount(userOneToken);
+        createInvestmentAccount(userTwoToken);
 
         mockMvc.perform(
                         get("/api/v1/dashboard/summary")
@@ -470,13 +532,13 @@ class DashboardControllerIT extends BaseIntegrationTest {
                                 .param("year", "2026")
                                 .header(
                                         "Authorization",
-                                        "Bearer " + token
+                                        "Bearer " + userOneToken
                                 )
                 )
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$.investmentBalance")
-                                .value(10000.00)
+                                .value(20000.00)
                 );
     }
 
@@ -1188,13 +1250,23 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         String token = getToken();
 
+        UUID bankAccountId = createFinancialAccount(
+                token,
+                "CHECKING_ACCOUNT"
+        );
+
+        UUID cashAccountId = createFinancialAccount(
+                token,
+                "CASH"
+        );
+
         createTransaction(
                 token,
                 10000,
                 "INCOME",
                 "BANK_TRANSFER",
                 LocalDate.of(2026, 7, 1),
-                "CHECKING_ACCOUNT"
+                bankAccountId
         );
 
         createTransaction(
@@ -1203,7 +1275,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "INCOME",
                 "CASH",
                 LocalDate.of(2026, 7, 1),
-                "CASH"
+                cashAccountId
         );
 
         createTransaction(
@@ -1212,7 +1284,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "EXPENSE",
                 "PIX",
                 LocalDate.of(2026, 7, 1),
-                "CHECKING_ACCOUNT"
+                bankAccountId
         );
 
         createTransaction(
@@ -1221,7 +1293,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "EXPENSE",
                 "DEBIT_CARD",
                 LocalDate.of(2026, 7, 1),
-                "CHECKING_ACCOUNT"
+                bankAccountId
         );
 
         createTransaction(
@@ -1230,7 +1302,7 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 "EXPENSE",
                 "CASH",
                 LocalDate.of(2026, 7, 1),
-                "CASH"
+                cashAccountId
         );
 
         mockMvc.perform(
@@ -1257,11 +1329,11 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 )
                 .andExpect(
                         jsonPath("$.cashBalance")
-                                .value(700)
+                                .value(5700)
                 )
                 .andExpect(
                         jsonPath("$.bankBalance")
-                                .value(22500)
+                                .value(12500)
                 )
                 .andExpect(
                         jsonPath("$.investmentBalance")

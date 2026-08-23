@@ -80,4 +80,34 @@ public interface FinancialAccountRepository
             @Param("householdId") UUID householdId,
             @Param("accountType") AccountType accountType
     );
+
+    @Query("""
+SELECT COALESCE(
+    SUM(
+        fa.initialBalance
+        + COALESCE(
+            (
+                SELECT SUM(
+                    CASE
+                        WHEN t.type = 'INCOME'
+                        THEN t.amount
+                        ELSE -t.amount
+                    END
+                )
+                FROM Transaction t
+                WHERE t.financialAccount.id = fa.id
+            ),
+            0
+        )
+    ),
+    0
+)
+FROM FinancialAccount fa
+WHERE fa.user.id = :userId
+AND fa.accountType = :accountType
+""")
+    BigDecimal sumCurrentBalanceByUserAndAccountType(
+            @Param("userId") UUID userId,
+            @Param("accountType") AccountType accountType
+    );
 }
