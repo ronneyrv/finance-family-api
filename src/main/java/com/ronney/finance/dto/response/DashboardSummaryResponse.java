@@ -38,6 +38,13 @@ public record DashboardSummaryResponse(
                 example = "6099.50",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
-        BigDecimal bankBalance
+        BigDecimal bankBalance,
+
+        @Schema(
+                description = "Current investment balance",
+                example = "10000.00",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        BigDecimal investmentBalance
 ) {
 }

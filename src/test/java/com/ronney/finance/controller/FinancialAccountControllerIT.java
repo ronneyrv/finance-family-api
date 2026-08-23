@@ -58,6 +58,43 @@ class FinancialAccountControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldCreateInvestmentFinancialAccount()
+            throws Exception {
+        String token = getToken();
+
+        String body = """
+            {
+                "name": "Investment Account",
+                "accountType": "INVESTMENT",
+                "initialBalance": 10000.00
+            }
+            """;
+
+        mockMvc.perform(
+                        post("/api/v1/financial-accounts")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(
+                        jsonPath("$.accountType")
+                                .value("INVESTMENT")
+                )
+                .andExpect(
+                        jsonPath("$.initialBalance")
+                                .value(10000.00)
+                )
+                .andExpect(
+                        jsonPath("$.currentBalance")
+                                .value(10000.00)
+                );
+    }
+
+    @Test
     void shouldListFinancialAccounts()
             throws Exception {
 

@@ -49,14 +49,79 @@ class DashboardControllerIT extends BaseIntegrationTest {
     private UUID createFinancialAccount(
             String token
     ) throws Exception {
-
         String body = """
-            {
-                "name":"Dashboard Test Account",
-                "accountType":"DIGITAL_ACCOUNT",
-                "initialBalance":5000.00
-            }
-            """;
+        {
+            "name":"Dashboard Test Account",
+            "accountType":"DIGITAL_ACCOUNT",
+            "initialBalance":5000.00
+        }
+        """;
+        String response = mockMvc.perform(
+                        post("/api/v1/financial-accounts")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(
+                objectMapper
+                        .readTree(response)
+                        .get("id")
+                        .asText()
+        );
+    }
+
+    private UUID createFinancialAccount(
+            String token,
+            String accountType
+    ) throws Exception {
+        String body = """
+        {
+            "name":"Dashboard Test Account",
+            "accountType":"%s",
+            "initialBalance":5000.00
+        }
+        """.formatted(accountType);
+
+        String response = mockMvc.perform(
+                        post("/api/v1/financial-accounts")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body)
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(
+                objectMapper
+                        .readTree(response)
+                        .get("id")
+                        .asText()
+        );
+    }
+
+    private UUID createInvestmentAccount(
+            String token
+    ) throws Exception {
+        String body = """
+        {
+            "name":"Investment Test Account",
+            "accountType":"INVESTMENT",
+            "initialBalance":10000.00
+        }
+        """;
 
         String response = mockMvc.perform(
                         post("/api/v1/financial-accounts")
@@ -242,9 +307,31 @@ class DashboardControllerIT extends BaseIntegrationTest {
             LocalDate transactionDate
     ) throws Exception {
 
+        createTransaction(
+                token,
+                amount,
+                type,
+                paymentMethod,
+                transactionDate,
+                "DIGITAL_ACCOUNT"
+        );
+    }
+
+    private void createTransaction(
+            String token,
+            int amount,
+            String type,
+            String paymentMethod,
+            LocalDate transactionDate,
+            String accountType
+    ) throws Exception {
+
         boolean income = type.equals("INCOME");
 
-        UUID accountId = createFinancialAccount(token);
+        UUID accountId = createFinancialAccount(
+                token,
+                accountType
+        );
 
         Category category =
                 categoryRepository
@@ -257,17 +344,17 @@ class DashboardControllerIT extends BaseIntegrationTest {
                         .orElseThrow();
 
         String body = """
-        {
-            "description":"Transaction test",
-            "amount":%d,
-            "transactionDate":"%s",
-            "type":"%s",
-            "paymentMethod":"%s",
-            "accountId":"%s",
-            "categoryId":"%s",
-            "subCategoryId":"%s"
-        }
-        """.formatted(
+    {
+        "description":"Transaction test",
+        "amount":%d,
+        "transactionDate":"%s",
+        "type":"%s",
+        "paymentMethod":"%s",
+        "accountId":"%s",
+        "categoryId":"%s",
+        "subCategoryId":"%s"
+    }
+    """.formatted(
                 amount,
                 transactionDate,
                 type,
@@ -365,6 +452,60 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 .andExpect(
                         jsonPath("$.totalIncome")
                                 .value(10000)
+                );
+    }
+
+    @Test
+    void shouldReturnInvestmentBalanceSeparately()
+            throws Exception {
+        String token = getToken();
+
+        createFinancialAccount(token);
+
+        createInvestmentAccount(token);
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/summary")
+                                .param("month", "7")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.investmentBalance")
+                                .value(10000.00)
+                );
+    }
+
+    @Test
+    void shouldExcludeInvestmentBalanceFromBankBalance()
+            throws Exception {
+        String token = getToken();
+
+        createFinancialAccount(token);
+
+        createInvestmentAccount(token);
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/summary")
+                                .param("month", "7")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.bankBalance")
+                                .value(5000.00)
+                )
+                .andExpect(
+                        jsonPath("$.investmentBalance")
+                                .value(10000.00)
                 );
     }
 
@@ -1051,13 +1192,17 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 token,
                 10000,
                 "INCOME",
-                "BANK_TRANSFER"
+                "BANK_TRANSFER",
+                LocalDate.of(2026, 7, 1),
+                "CHECKING_ACCOUNT"
         );
 
         createTransaction(
                 token,
                 1000,
                 "INCOME",
+                "CASH",
+                LocalDate.of(2026, 7, 1),
                 "CASH"
         );
 
@@ -1065,20 +1210,26 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 token,
                 2000,
                 "EXPENSE",
-                "PIX"
+                "PIX",
+                LocalDate.of(2026, 7, 1),
+                "CHECKING_ACCOUNT"
         );
 
         createTransaction(
                 token,
                 500,
                 "EXPENSE",
-                "DEBIT_CARD"
+                "DEBIT_CARD",
+                LocalDate.of(2026, 7, 1),
+                "CHECKING_ACCOUNT"
         );
 
         createTransaction(
                 token,
                 300,
                 "EXPENSE",
+                "CASH",
+                LocalDate.of(2026, 7, 1),
                 "CASH"
         );
 
@@ -1110,7 +1261,11 @@ class DashboardControllerIT extends BaseIntegrationTest {
                 )
                 .andExpect(
                         jsonPath("$.bankBalance")
-                                .value(7500)
+                                .value(22500)
+                )
+                .andExpect(
+                        jsonPath("$.investmentBalance")
+                                .value(0)
                 );
     }
 
