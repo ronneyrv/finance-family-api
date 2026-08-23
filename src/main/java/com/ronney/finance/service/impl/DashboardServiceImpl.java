@@ -4,12 +4,23 @@ import com.ronney.finance.domain.entity.CreditCard;
 import com.ronney.finance.domain.entity.CreditCardInstallment;
 import com.ronney.finance.domain.entity.RecurringTransaction;
 import com.ronney.finance.domain.entity.User;
+import com.ronney.finance.domain.enums.AccountType;
 import com.ronney.finance.domain.enums.CommitmentLevel;
 import com.ronney.finance.domain.enums.FinancialHealthLevel;
 import com.ronney.finance.domain.enums.PaymentMethod;
 import com.ronney.finance.domain.enums.TransactionKind;
 import com.ronney.finance.domain.enums.TransactionType;
-import com.ronney.finance.dto.response.*;
+import com.ronney.finance.dto.response.CategoryExpenseResponse;
+import com.ronney.finance.dto.response.CreditCardInvoiceSummaryResponse;
+import com.ronney.finance.dto.response.CreditCardMonthlyExpenseResponse;
+import com.ronney.finance.dto.response.CumulativeResultResponse;
+import com.ronney.finance.dto.response.DashboardFiltersResponse;
+import com.ronney.finance.dto.response.DashboardSummaryResponse;
+import com.ronney.finance.dto.response.FinancialHealthResponse;
+import com.ronney.finance.dto.response.IncomeCommitmentResponse;
+import com.ronney.finance.dto.response.MonthlyCreditCardTrendResponse;
+import com.ronney.finance.dto.response.MonthlyProjectionResponse;
+import com.ronney.finance.dto.response.MonthlySummaryResponse;
 import com.ronney.finance.repository.CreditCardInstallmentRepository;
 import com.ronney.finance.repository.CreditCardRepository;
 import com.ronney.finance.repository.FinancialAccountRepository;
@@ -340,38 +351,41 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal cashBalance =
                 cashIncome.subtract(cashExpense);
 
-        BigDecimal bankIncome =
-                transactionRepository
-                        .sumByUserIdAndTypeAndPaymentMethods(
-                                user.getId(),
-                                TransactionType.INCOME,
-                                List.of(
-                                        PaymentMethod.PIX,
-                                        PaymentMethod.BANK_TRANSFER
-                                )
-                        );
-
-        BigDecimal bankExpense =
-                transactionRepository
-                        .sumByUserIdAndTypeAndPaymentMethods(
-                                user.getId(),
-                                TransactionType.EXPENSE,
-                                List.of(
-                                        PaymentMethod.PIX,
-                                        PaymentMethod.BANK_TRANSFER,
-                                        PaymentMethod.DEBIT_CARD
-                                )
-                        );
-
         BigDecimal bankBalance =
-                bankIncome.subtract(bankExpense);
+                financialAccountRepository
+                        .sumCurrentBalanceByHouseholdAndAccountType(
+                                user.getHousehold().getId(),
+                                AccountType.CHECKING_ACCOUNT
+                        )
+                        .add(
+                                financialAccountRepository
+                                        .sumCurrentBalanceByHouseholdAndAccountType(
+                                                user.getHousehold().getId(),
+                                                AccountType.SAVINGS_ACCOUNT
+                                        )
+                        )
+                        .add(
+                                financialAccountRepository
+                                        .sumCurrentBalanceByHouseholdAndAccountType(
+                                                user.getHousehold().getId(),
+                                                AccountType.DIGITAL_ACCOUNT
+                                        )
+                        );
+
+        BigDecimal investmentBalance =
+                financialAccountRepository
+                        .sumCurrentBalanceByHouseholdAndAccountType(
+                                user.getHousehold().getId(),
+                                AccountType.INVESTMENT
+                        );
 
         return new DashboardSummaryResponse(
                 totalIncome,
                 totalExpense,
                 balance,
                 cashBalance,
-                bankBalance
+                bankBalance,
+                investmentBalance
         );
     }
 

@@ -1,6 +1,7 @@
 package com.ronney.finance.repository;
 
 import com.ronney.finance.domain.entity.FinancialAccount;
+import com.ronney.finance.domain.enums.AccountType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -48,5 +49,35 @@ public interface FinancialAccountRepository
     """)
     BigDecimal sumCurrentBalanceByHousehold(
             @Param("householdId") UUID householdId
+    );
+
+    @Query("""
+    SELECT COALESCE(
+        SUM(
+            fa.initialBalance
+            + COALESCE(
+                (
+                    SELECT SUM(
+                        CASE
+                            WHEN t.type = 'INCOME'
+                            THEN t.amount
+                            ELSE -t.amount
+                        END
+                    )
+                    FROM Transaction t
+                    WHERE t.financialAccount.id = fa.id
+                ),
+                0
+            )
+        ),
+        0
+    )
+    FROM FinancialAccount fa
+    WHERE fa.user.household.id = :householdId
+    AND fa.accountType = :accountType
+    """)
+    BigDecimal sumCurrentBalanceByHouseholdAndAccountType(
+            @Param("householdId") UUID householdId,
+            @Param("accountType") AccountType accountType
     );
 }
