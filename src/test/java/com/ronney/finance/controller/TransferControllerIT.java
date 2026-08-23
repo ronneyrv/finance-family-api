@@ -184,6 +184,8 @@ class TransferControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(
                         get("/api/v1/dashboard/summary")
+                                .param("month", "8")
+                                .param("year", "2026")
                                 .header(
                                         "Authorization",
                                         "Bearer " + token

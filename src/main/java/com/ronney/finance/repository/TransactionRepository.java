@@ -87,6 +87,23 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     );
 
     @Query("""
+    SELECT COALESCE(SUM(t.amount), 0)
+    FROM Transaction t
+    WHERE t.user.id = :userId
+    AND t.type = :type
+    AND t.transactionKind = :transactionKind
+    AND MONTH(t.transactionDate) = :month
+    AND YEAR(t.transactionDate) = :year
+    """)
+    BigDecimal sumByUserIdAndTypeAndMonthAndYear(
+            @Param("userId") UUID userId,
+            @Param("type") TransactionType type,
+            @Param("transactionKind") TransactionKind transactionKind,
+            @Param("month") Integer month,
+            @Param("year") Integer year
+    );
+
+    @Query("""
         SELECT
             c.name as category,
             COALESCE(SUM(t.amount),0) as amount

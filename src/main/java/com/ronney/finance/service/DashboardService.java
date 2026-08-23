@@ -5,7 +5,10 @@ import com.ronney.finance.dto.response.*;
 import java.util.List;
 
 public interface DashboardService {
-    DashboardSummaryResponse getSummary();
+    DashboardSummaryResponse getSummary(
+            Integer month,
+            Integer year
+    );
 
     FinancialHealthResponse getFinancialHealth();
 
