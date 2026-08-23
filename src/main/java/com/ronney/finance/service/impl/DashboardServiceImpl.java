@@ -294,21 +294,28 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public DashboardSummaryResponse getSummary() {
+    public DashboardSummaryResponse getSummary(
+            Integer month,
+            Integer year
+    ) {
         User user = currentUserService.getAuthenticatedUser();
 
         BigDecimal totalIncome =
-                transactionRepository.sumByUserIdAndType(
+                transactionRepository.sumByUserIdAndTypeAndMonthAndYear(
                         user.getId(),
                         TransactionType.INCOME,
-                        TransactionKind.REGULAR
+                        TransactionKind.REGULAR,
+                        month,
+                        year
                 );
 
         BigDecimal totalExpense =
-                transactionRepository.sumByUserIdAndType(
+                transactionRepository.sumByUserIdAndTypeAndMonthAndYear(
                         user.getId(),
                         TransactionType.EXPENSE,
-                        TransactionKind.REGULAR
+                        TransactionKind.REGULAR,
+                        month,
+                        year
                 );
 
         BigDecimal balance =

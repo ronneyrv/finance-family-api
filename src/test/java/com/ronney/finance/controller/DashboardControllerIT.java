@@ -354,6 +354,8 @@ class DashboardControllerIT extends BaseIntegrationTest {
         createIncome(token, 10000);
         mockMvc.perform(
                         get("/api/v1/dashboard/summary")
+                                .param("month", "7")
+                                .param("year", "2026")
                                 .header(
                                         "Authorization",
                                         "Bearer " + token
@@ -364,6 +366,57 @@ class DashboardControllerIT extends BaseIntegrationTest {
                         jsonPath("$.totalIncome")
                                 .value(10000)
                 );
+    }
+
+    @Test
+    void shouldReturnDashboardSummaryForSelectedMonth() throws Exception {
+        String token = getToken();
+
+        createTransaction(
+                token,
+                10000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2026, 7, 1)
+        );
+
+        createTransaction(
+                token,
+                2000,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 7, 10)
+        );
+
+        createTransaction(
+                token,
+                5000,
+                "INCOME",
+                "BANK_TRANSFER",
+                LocalDate.of(2026, 8, 1)
+        );
+
+        createTransaction(
+                token,
+                1000,
+                "EXPENSE",
+                "PIX",
+                LocalDate.of(2026, 8, 10)
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/dashboard/summary")
+                                .param("month", "7")
+                                .param("year", "2026")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalIncome").value(10000))
+                .andExpect(jsonPath("$.totalExpense").value(2000))
+                .andExpect(jsonPath("$.balance").value(8000));
     }
 
     @Test
@@ -1031,6 +1084,8 @@ class DashboardControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(
                         get("/api/v1/dashboard/summary")
+                                .param("month", "7")
+                                .param("year", "2026")
                                 .header(
                                         "Authorization",
                                         "Bearer " + token

@@ -52,8 +52,11 @@ public class DashboardController {
             )
     })
     @GetMapping("/summary")
-    public DashboardSummaryResponse getSummary() {
-        return dashboardService.getSummary();
+    public DashboardSummaryResponse getSummary(
+            @RequestParam Integer month,
+            @RequestParam Integer year
+    ) {
+        return dashboardService.getSummary(month, year);
     }
 
     @Operation(
