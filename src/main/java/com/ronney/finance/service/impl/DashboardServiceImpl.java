@@ -50,7 +50,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -332,42 +331,30 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal balance =
                 totalIncome.subtract(totalExpense);
 
-        BigDecimal cashIncome =
-                transactionRepository
-                        .sumByUserIdAndTypeAndPaymentMethods(
-                                user.getId(),
-                                TransactionType.INCOME,
-                                List.of(PaymentMethod.CASH)
-                        );
-
-        BigDecimal cashExpense =
-                transactionRepository
-                        .sumByUserIdAndTypeAndPaymentMethods(
-                                user.getId(),
-                                TransactionType.EXPENSE,
-                                List.of(PaymentMethod.CASH)
-                        );
-
         BigDecimal cashBalance =
-                cashIncome.subtract(cashExpense);
+                financialAccountRepository
+                        .sumCurrentBalanceByUserAndAccountType(
+                                user.getId(),
+                                AccountType.CASH
+                        );
 
         BigDecimal bankBalance =
                 financialAccountRepository
-                        .sumCurrentBalanceByHouseholdAndAccountType(
-                                user.getHousehold().getId(),
+                        .sumCurrentBalanceByUserAndAccountType(
+                                user.getId(),
                                 AccountType.CHECKING_ACCOUNT
                         )
                         .add(
                                 financialAccountRepository
-                                        .sumCurrentBalanceByHouseholdAndAccountType(
-                                                user.getHousehold().getId(),
+                                        .sumCurrentBalanceByUserAndAccountType(
+                                                user.getId(),
                                                 AccountType.SAVINGS_ACCOUNT
                                         )
                         )
                         .add(
                                 financialAccountRepository
-                                        .sumCurrentBalanceByHouseholdAndAccountType(
-                                                user.getHousehold().getId(),
+                                        .sumCurrentBalanceByUserAndAccountType(
+                                                user.getId(),
                                                 AccountType.DIGITAL_ACCOUNT
                                         )
                         );
