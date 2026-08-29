@@ -23,6 +23,24 @@ public interface RecurringTransactionRepository
     );
 
     @Query("""
+    SELECT r
+    FROM RecurringTransaction r
+    WHERE r.user.household.id = :householdId
+    AND r.active = true
+    AND r.startDate <= :yearEnd
+    AND (
+        r.endDate IS NULL
+        OR r.endDate >= :yearStart
+    )
+    ORDER BY r.dayOfMonth ASC
+    """)
+    List<RecurringTransaction> findActiveForYear(
+            @Param("householdId") UUID householdId,
+            @Param("yearStart") LocalDate yearStart,
+            @Param("yearEnd") LocalDate yearEnd
+    );
+
+    @Query("""
         SELECT r
         FROM RecurringTransaction r
         WHERE r.user.id = :userId

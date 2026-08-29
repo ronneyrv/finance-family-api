@@ -604,10 +604,24 @@ public class DashboardServiceImpl implements DashboardService {
     ) {
         User user = currentUserService.getAuthenticatedUser();
 
+        List<RecurringTransaction> recurringTransactions =
+                recurringTransactionRepository.findActiveForYear(
+                        user.getHousehold().getId(),
+                        LocalDate.of(year, 1, 1),
+                        LocalDate.of(year, 12, 31)
+                );
+
+        List<CreditCardInstallment> installments =
+                installmentRepository.findByHouseholdInvoiceYear(
+                        user.getHousehold().getId(),
+                        year
+                );
+
         List<MonthlyProjectionResponse> projections =
                 new ArrayList<>();
 
         for (int month = 1; month <= 12; month++) {
+            final int currentMonth = month;
 
             LocalDate periodStart =
                     LocalDate.of(year, month, 1);
@@ -615,13 +629,6 @@ public class DashboardServiceImpl implements DashboardService {
             LocalDate periodEnd =
                     periodStart.withDayOfMonth(
                             periodStart.lengthOfMonth()
-                    );
-
-            List<RecurringTransaction> recurringTransactions =
-                    recurringTransactionRepository.findActiveForHouseholdPeriod(
-                            user.getHousehold().getId(),
-                            periodStart,
-                            periodEnd
                     );
 
             BigDecimal projectedIncome =
@@ -640,19 +647,16 @@ public class DashboardServiceImpl implements DashboardService {
                             periodEnd
                     );
 
-            List<CreditCardInstallment> installments =
-                    installmentRepository
-                            .findByHouseholdInvoice(
-                                    user.getHousehold().getId(),
-                                    month,
-                                    year
-                            );
-
-            BigDecimal projectedCreditCardExpense =
+            List<CreditCardInstallment> monthlyInstallments =
                     installments.stream()
                             .filter(installment ->
-                                    !installment.getPaid()
+                                    installment.getInvoiceMonth() == currentMonth
+                                            && !installment.getPaid()
                             )
+                            .toList();
+
+            BigDecimal projectedCreditCardExpense =
+                    monthlyInstallments.stream()
                             .map(CreditCardInstallment::getAmount)
                             .reduce(
                                     BigDecimal.ZERO,

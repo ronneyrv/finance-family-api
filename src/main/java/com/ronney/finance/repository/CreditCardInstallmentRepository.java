@@ -44,6 +44,21 @@ public interface CreditCardInstallmentRepository
             Integer invoiceYear
     );
 
+    @EntityGraph(attributePaths = {
+            "purchase",
+            "purchase.creditCard"
+    })
+    @Query("""
+    SELECT i
+    FROM CreditCardInstallment i
+    WHERE i.purchase.creditCard.user.household.id = :householdId
+    AND i.invoiceYear = :year
+    """)
+    List<CreditCardInstallment> findByHouseholdInvoiceYear(
+            @Param("householdId") UUID householdId,
+            @Param("year") Integer year
+    );
+
     @Query("""
     SELECT COALESCE(SUM(i.amount), 0)
     FROM CreditCardInstallment i
