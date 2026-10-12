@@ -73,18 +73,18 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex,
             HttpServletRequest request
     ) {
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error ->
+                        error.getField() + ": " + error.getDefaultMessage()
+                )
+                .distinct()
+                .collect(java.util.stream.Collectors.joining("; "));
 
-        String message =
-                ex.getBindingResult()
-                        .getFieldErrors()
-                        .stream()
-                        .findFirst()
-                        .map(error ->
-                                error.getField()
-                                        + ": "
-                                        + error.getDefaultMessage()
-                        )
-                        .orElse("Validation error");
+        if (message.isBlank()) {
+            message = "Validation error";
+        }
 
         ErrorResponse response = buildErrorResponse(
                 HttpStatus.BAD_REQUEST,

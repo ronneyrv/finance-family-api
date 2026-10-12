@@ -54,44 +54,37 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldReturnStandardErrorResponseForValidationError()
             throws NoSuchMethodException {
-
         var bindingResult = new BeanPropertyBindingResult(
                 new Object(),
                 "request"
         );
 
         bindingResult.addError(
-                new FieldError(
-                        "request",
-                        "name",
-                        "must not be blank"
-                )
+                new FieldError("request", "name", "must not be blank")
+        );
+        bindingResult.addError(
+                new FieldError("request", "email", "must be a valid email")
         );
 
-        MethodParameter parameter =
-                new MethodParameter(
-                        GlobalExceptionHandlerTest.class
-                                .getDeclaredMethod(
-                                        "validationMethod",
-                                        String.class
-                                ),
-                        0
-                );
+        MethodParameter parameter = new MethodParameter(
+                GlobalExceptionHandlerTest.class.getDeclaredMethod(
+                        "validationMethod",
+                        String.class
+                ),
+                0
+        );
 
         var exception = new MethodArgumentNotValidException(
                 parameter,
                 bindingResult
         );
 
-        var response = handler.handleValidation(
-                exception,
-                request
-        );
+        var response = handler.handleValidation(exception, request);
 
         assertErrorResponse(
                 response.getBody(),
                 HttpStatus.BAD_REQUEST,
-                "name: must not be blank"
+                "name: must not be blank; email: must be a valid email"
         );
     }
 
